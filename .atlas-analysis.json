@@ -1,0 +1,133 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Zoi",
+  "projectDescription": "Universal package manager and environment setup tool for cross-platform development workflows",
+  "theme": "aspen",
+  "primaryColor": "#5454f4",
+  "lightColor": "#a4a4f4",
+  "darkColor": "#f1e7ea",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "features",
+              "repositories",
+              "dependencies",
+              "project-config"
+            ]
+          },
+          {
+            "group": "Command Reference",
+            "pages": [
+              "commands/install",
+              "commands/uninstall",
+              "commands/update",
+              "commands/search",
+              "commands/sync",
+              "commands/package",
+              "commands/dev",
+              "commands/exec",
+              "commands/all-commands"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/creating-packages",
+              "guides/publishing-packages",
+              "guides/security",
+              "guides/offline-mode",
+              "guides/backup-restore",
+              "guides/cicd",
+              "guides/transaction-hooks",
+              "guides/windows"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "lua-api",
+              "lua-api-cookbook",
+              "lua-plugin-api",
+              "extensions",
+              "config",
+              "telemetry"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Library API",
+        "groups": [
+          {
+            "group": "Rust Library",
+            "pages": [
+              "lib/introduction",
+              "lib/installation",
+              "lib/api-reference",
+              "lib/examples"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional Resources",
+            "pages": [
+              "zoidberg",
+              "comparisons",
+              "migrate",
+              "packaging",
+              "contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Cross-platform package manager for Linux, macOS, and Windows",
+    "Dynamic package definitions with Lua scripting",
+    "Integration with 40+ system and language package managers",
+    "Project-specific environments with zoi.yaml",
+    "SAT-powered dependency resolution with PubGrub algorithm",
+    "Secure package verification with checksums and GPG signatures",
+    "Development shells with automatic environment setup",
+    "Advanced CLI tools (rollback, pin, exec, doctor, etc.)",
+    "Repository-based package distribution system",
+    "Library support for embedding in Rust applications"
+  ],
+  "publicApiSurface": [
+    "zoi install",
+    "zoi uninstall",
+    "zoi update",
+    "zoi sync",
+    "zoi search",
+    "zoi dev",
+    "zoi run",
+    "zoi exec",
+    "zoi package build",
+    "zoi rollback",
+    "zoi pin",
+    "zoi doctor",
+    "zoi repo",
+    "zoi service",
+    "zoi::build()",
+    "zoi::install_package()",
+    "zoi::uninstall_package()"
+  ]
+}
