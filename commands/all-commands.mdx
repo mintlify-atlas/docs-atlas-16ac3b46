@@ -14,9 +14,9 @@ Install packages from registries, local files, URLs, or git repositories.
 ```bash
 zoi install [OPTIONS] [SOURCES]...
 zoi i [OPTIONS] [SOURCES]...  # alias
-```
+```bash
 
-**See:** [zoi install](/docs/zds/zoi/commands/install)
+**See:** [zoi install](/commands/install)
 
 ---
 
@@ -29,9 +29,9 @@ zoi uninstall [OPTIONS] <PACKAGES>...
 zoi un [OPTIONS] <PACKAGES>...   # alias
 zoi rm [OPTIONS] <PACKAGES>...   # alias
 zoi remove [OPTIONS] <PACKAGES>... # alias
-```
+```bash
 
-**See:** [zoi uninstall](/docs/zds/zoi/commands/uninstall)
+**See:** [zoi uninstall](/commands/uninstall)
 
 ---
 
@@ -42,9 +42,9 @@ Update packages to their latest versions.
 ```bash
 zoi update [OPTIONS] [PACKAGES]...
 zoi up [OPTIONS] [PACKAGES]...  # alias
-```
+```bash
 
-**See:** [zoi update](/docs/zds/zoi/commands/update)
+**See:** [zoi update](/commands/update)
 
 ---
 
@@ -55,9 +55,9 @@ Search for packages by name, description, or tags.
 ```bash
 zoi search [OPTIONS] <TERM>
 zoi s [OPTIONS] <TERM>  # alias
-```
+```bash
 
-**See:** [zoi search](/docs/zds/zoi/commands/search)
+**See:** [zoi search](/commands/search)
 
 ---
 
@@ -68,9 +68,9 @@ Synchronize package databases from remote registries.
 ```bash
 zoi sync [OPTIONS] [SUBCOMMAND]
 zoi sy [OPTIONS] [SUBCOMMAND]  # alias
-```
+```bash
 
-**See:** [zoi sync](/docs/zds/zoi/commands/sync)
+**See:** [zoi sync](/commands/sync)
 
 ---
 
@@ -83,7 +83,7 @@ List installed or all available packages.
 ```bash
 zoi list [OPTIONS]
 zoi ls [OPTIONS]  # alias
-```
+```bash
 
 **Options:**
 - `--all, -a`: List all packages from database, not just installed
@@ -102,7 +102,7 @@ zoi list --all
 
 # Filter by repository
 zoi list --repo extra
-```
+```bash
 
 ---
 
@@ -112,7 +112,7 @@ Display detailed information about a package.
 
 ```bash
 zoi show <PACKAGE>
-```
+```bash
 
 **Options:**
 - `--raw`: Display raw package file (unformatted)
@@ -121,7 +121,7 @@ zoi show <PACKAGE>
 ```bash
 zoi show nodejs
 zoi show --raw python
-```
+```bash
 
 ---
 
@@ -131,7 +131,7 @@ Find which package provides a specific command or file.
 
 ```bash
 zoi provides <TERM>
-```
+```bash
 
 **Example:**
 ```bash
@@ -140,7 +140,7 @@ zoi provides gcc
 
 # Find which package owns a file
 zoi provides /usr/bin/python
-```
+```bash
 
 ---
 
@@ -151,13 +151,13 @@ Find which package owns a specific file.
 ```bash
 zoi owner <PATH>
 zoi owns <PATH>  # alias
-```
+```bash
 
 **Example:**
 ```bash
 zoi owner /usr/bin/node
 zoi owns ~/.zoi/store/user/zoidberg/main/nodejs/latest/bin/node
-```
+```bash
 
 ---
 
@@ -167,12 +167,12 @@ List all files owned by a package.
 
 ```bash
 zoi files <PACKAGE>
-```
+```bash
 
 **Example:**
 ```bash
 zoi files nodejs
-```
+```bash
 
 ---
 
@@ -182,13 +182,13 @@ Visualize the dependency tree of a package.
 
 ```bash
 zoi tree <PACKAGES>...
-```
+```bash
 
 **Example:**
 ```bash
 zoi tree nodejs
 zoi tree gcc python
-```
+```bash
 
 ---
 
@@ -198,13 +198,13 @@ Explain why a package is installed (dependency chain).
 
 ```bash
 zoi why <PACKAGE>
-```
+```bash
 
 **Example:**
 ```bash
 zoi why libssl
 # Output: libssl is required by: nodejs -> npm
-```
+```bash
 
 ---
 
@@ -216,7 +216,7 @@ Pin a package to a specific version to prevent updates.
 
 ```bash
 zoi pin <PACKAGE> <VERSION>
-```
+```bash
 
 **Example:**
 ```bash
@@ -225,7 +225,7 @@ zoi pin nodejs 18.0.0
 
 # Prevent accidental updates
 zoi update --all  # Skips pinned packages
-```
+```bash
 
 ---
 
@@ -235,13 +235,13 @@ Unpin a package, allowing it to be updated.
 
 ```bash
 zoi unpin <PACKAGE>
-```
+```bash
 
 **Example:**
 ```bash
 zoi unpin nodejs
 zoi update nodejs  # Now can update
-```
+```bash
 
 ---
 
@@ -252,7 +252,7 @@ Downgrade a package to a previous version.
 ```bash
 zoi downgrade <PACKAGE>
 zoi dg <PACKAGE>  # alias
-```
+```bash
 
 Interactively choose from available cached versions.
 
@@ -264,7 +264,7 @@ zoi downgrade nodejs
 # 2. 19.5.0
 # 3. 18.0.0
 # Select version:
-```
+```bash
 
 ---
 
@@ -275,7 +275,7 @@ Rollback a package to the previously installed version.
 ```bash
 zoi rollback <PACKAGE>
 zoi rollback --last-transaction
-```
+```bash
 
 **Options:**
 - `--last-transaction`: Rollback the entire last transaction
@@ -287,7 +287,7 @@ zoi rollback nodejs
 
 # Rollback last operation
 zoi rollback --last-transaction
-```
+```bash
 
 ---
 
@@ -298,7 +298,7 @@ Upgrade Zoi itself to the latest version.
 ```bash
 zoi upgrade [OPTIONS]
 zoi ug [OPTIONS]  # alias
-```
+```bash
 
 **Options:**
 - `--force`: Force a full download
@@ -312,7 +312,7 @@ zoi upgrade
 
 # Upgrade to specific version
 zoi upgrade --tag v1.7.0
-```
+```bash
 
 ---
 
@@ -325,9 +325,9 @@ Enter a development shell for the current project.
 ```bash
 zoi dev [OPTIONS]
 zoi develop [OPTIONS]  # alias
-```
+```bash
 
-**See:** [zoi dev](/docs/zds/zoi/commands/dev)
+**See:** [zoi dev](/commands/dev)
 
 ---
 
@@ -338,9 +338,9 @@ Execute a package command without installing it.
 ```bash
 zoi exec [OPTIONS] <SOURCE> [ARGS]...
 zoi x [OPTIONS] <SOURCE> [ARGS]...  # alias
-```
+```bash
 
-**See:** [zoi exec](/docs/zds/zoi/commands/exec)
+**See:** [zoi exec](/commands/exec)
 
 ---
 
@@ -350,7 +350,7 @@ Execute a command defined in `zoi.yaml`.
 
 ```bash
 zoi run [COMMAND] [ARGS]...
-```
+```bash
 
 **Example:**
 ```yaml
@@ -360,7 +360,7 @@ commands:
     command: npm run build
   test:
     command: npm test
-```
+```bash
 
 ```bash
 zoi run build
@@ -368,7 +368,7 @@ zoi run test
 
 # Without argument, shows interactive prompt
 zoi run
-```
+```bash
 
 ---
 
@@ -378,7 +378,7 @@ Manage and set up project environments from `zoi.yaml`.
 
 ```bash
 zoi env [ENVIRONMENT]
-```
+```bash
 
 **Example:**
 ```yaml
@@ -392,12 +392,12 @@ environments:
     packages: [nodejs, npm]
     setup:
       - npm install
-```
+```bash
 
 ```bash
 zoi env production
 zoi env  # Interactive prompt
-```
+```bash
 
 ---
 
@@ -407,7 +407,7 @@ Enter an ephemeral shell with specific packages or set up completions.
 
 ```bash
 zoi shell [SHELL] [OPTIONS]
-```
+```bash
 
 **Options:**
 - `-p, --package <PACKAGE>`: Packages to include
@@ -425,7 +425,7 @@ zoi shell -p nodejs -r "node script.js"
 # Set up completions
 zoi shell bash
 zoi shell zsh --scope user
-```
+```bash
 
 ---
 
@@ -438,9 +438,9 @@ Build, test, and manage packages.
 ```bash
 zoi package <SUBCOMMAND> [OPTIONS]
 zoi pkg <SUBCOMMAND> [OPTIONS]  # alias
-```
+```bash
 
-**See:** [zoi package](/docs/zds/zoi/commands/package)
+**See:** [zoi package](/commands/package)
 
 ---
 
@@ -450,7 +450,7 @@ Create a new application using a package template.
 
 ```bash
 zoi create <SOURCE> [APP_NAME]
-```
+```bash
 
 **Example:**
 ```bash
@@ -459,7 +459,7 @@ zoi create react-template my-app
 
 # Create from registry template
 zoi create @templates/nodejs-cli my-cli
-```
+```bash
 
 ---
 
@@ -471,7 +471,7 @@ Remove packages installed as dependencies that are no longer needed.
 
 ```bash
 zoi autoremove [OPTIONS]
-```
+```bash
 
 **Options:**
 - `--dry-run`: Show what would be removed
@@ -483,7 +483,7 @@ zoi autoremove --dry-run
 
 # Remove orphaned dependencies
 zoi autoremove
-```
+```bash
 
 ---
 
@@ -494,7 +494,7 @@ Change installation reason of packages (explicit vs. dependency).
 ```bash
 zoi mark <PACKAGES>... [OPTIONS]
 zoi m <PACKAGES>... [OPTIONS]  # alias
-```
+```bash
 
 **Options:**
 - `--as-dependency`: Mark as dependency
@@ -507,7 +507,7 @@ zoi mark --as-explicit libssl
 
 # Mark as dependency
 zoi mark --as-dependency libcurl
-```
+```bash
 
 ---
 
@@ -517,7 +517,7 @@ Clear cached package binaries.
 
 ```bash
 zoi clean [OPTIONS]
-```
+```bash
 
 **Options:**
 - `--dry-run`: Show what would be cleaned
@@ -529,7 +529,7 @@ zoi clean --dry-run
 
 # Clean cache
 zoi clean
-```
+```bash
 
 ---
 
@@ -539,7 +539,7 @@ Manage Zoi's local package cache.
 
 ```bash
 zoi cache <SUBCOMMAND>
-```
+```bash
 
 **Subcommands:**
 
@@ -547,20 +547,20 @@ zoi cache <SUBCOMMAND>
 ```bash
 zoi cache add <FILES>...
 zoi cache add package.pkg.tar.zst
-```
+```bash
 
 **clear** - Clear the cache:
 ```bash
 zoi cache clear
 zoi cache clean  # alias
 zoi cache clear --dry-run
-```
+```bash
 
 **list** - List cached archives:
 ```bash
 zoi cache list
 zoi cache ls  # alias
-```
+```bash
 
 ---
 
@@ -570,7 +570,7 @@ Show package operation history.
 
 ```bash
 zoi history
-```
+```bash
 
 Displays transaction log of all package operations (install, update, uninstall).
 
@@ -585,7 +585,7 @@ Manage package repositories.
 ```bash
 zoi repo <SUBCOMMAND>
 zoi repositories <SUBCOMMAND>  # alias
-```
+```bash
 
 **Subcommands:**
 - `add <NAME|URL>`: Add official repo or clone from git URL
@@ -607,7 +607,7 @@ zoi repo list
 
 # List all available
 zoi repo list all
-```
+```bash
 
 ---
 
@@ -619,7 +619,7 @@ Manage PGP keys for package signature verification.
 
 ```bash
 zoi pgp <SUBCOMMAND>
-```
+```bash
 
 **Common operations:**
 - Import keys
@@ -638,7 +638,7 @@ Manage background services for installed packages.
 ```bash
 zoi service <SUBCOMMAND>
 zoi svc <SUBCOMMAND>  # alias
-```
+```bash
 
 **Typical subcommands:**
 - `start <SERVICE>`: Start a service
@@ -660,19 +660,19 @@ Manage Zoi extensions.
 ```bash
 zoi extension <SUBCOMMAND>
 zoi ext <SUBCOMMAND>  # alias
-```
+```bash
 
 **Subcommands:**
 
 **add** - Install an extension:
 ```bash
 zoi extension add <NAME>
-```
+```bash
 
 **remove** - Remove an extension:
 ```bash
 zoi extension remove <NAME>
-```
+```bash
 
 ---
 
@@ -687,14 +687,14 @@ zoi version
 zoi v  # alias
 zoi --version
 zoi -v
-```
+```bash
 
 **Output:**
-```
+```bash
 Zoi 1.7.0 (Production Release)
 Commit: abc1234
 Build: Release
-```
+```bash
 
 ---
 
@@ -704,7 +704,7 @@ Display application information and credits.
 
 ```bash
 zoi about
-```
+```bash
 
 Shows full application details, author, license, and homepage.
 
@@ -716,15 +716,15 @@ Display detected operating system and architecture information.
 
 ```bash
 zoi info
-```
+```bash
 
 **Output:**
-```
+```bash
 OS: Linux
 Distribution: Ubuntu 22.04
 Architecture: x86_64
 Package Managers: apt, snap
-```
+```bash
 
 ---
 
@@ -734,7 +734,7 @@ Verify essential third-party dependencies.
 
 ```bash
 zoi check
-```
+```bash
 
 Checks for required tools like `git` in PATH.
 
@@ -746,7 +746,7 @@ Diagnose common issues and provide suggestions.
 
 ```bash
 zoi doctor
-```
+```bash
 
 Runs comprehensive health checks:
 - Verifies installation integrity
@@ -763,7 +763,7 @@ Display a package's manual page.
 
 ```bash
 zoi man <PACKAGE>
-```
+```bash
 
 **Options:**
 - `--upstream`: View upstream manual even if downloaded
@@ -773,7 +773,7 @@ zoi man <PACKAGE>
 ```bash
 zoi man nodejs
 zoi man --raw python
-```
+```bash
 
 ---
 
@@ -785,7 +785,7 @@ Manage opt-in anonymous telemetry.
 
 ```bash
 zoi telemetry <status|enable|disable>
-```
+```bash
 
 **Examples:**
 ```bash
@@ -797,7 +797,7 @@ zoi telemetry enable
 
 # Disable telemetry
 zoi telemetry disable
-```
+```bash
 
 ---
 
@@ -809,7 +809,7 @@ Helper commands for various internal tasks.
 
 ```bash
 zoi helper <SUBCOMMAND>
-```
+```bash
 
 ---
 
@@ -819,7 +819,7 @@ Generate shell completion scripts (hidden command).
 
 ```bash
 zoi generate-completions <SHELL>
-```
+```bash
 
 **Shells:** bash, zsh, fish, powershell, elvish
 
@@ -833,7 +833,7 @@ Generate man pages for Zoi (hidden command).
 
 ```bash
 zoi generate-manual
-```
+```bash
 
 ---
 
@@ -867,7 +867,7 @@ zoi --offline search python
 
 # Use alternate root
 zoi --root /mnt/system install gcc
-```
+```bash
 
 ---
 
