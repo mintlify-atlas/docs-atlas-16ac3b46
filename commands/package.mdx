@@ -1,0 +1,334 @@
+---
+title: zoi package
+description: Build, test, and manage Zoi packages
+---
+
+## Syntax
+
+```bash
+zoi package <SUBCOMMAND> [OPTIONS]
+zoi pkg <SUBCOMMAND> [OPTIONS]  # alias
+```
+
+## Description
+
+The `package` command provides tools for package developers to build, test, and install packages from `pkg.lua` files. This is the primary interface for creating distributable Zoi packages.
+
+## Subcommands
+
+### package build
+
+Build a package from a `pkg.lua` file.
+
+```bash
+zoi package build [OPTIONS] <PACKAGE_FILE>
+zoi pkg build [OPTIONS] <PACKAGE_FILE>
+```
+
+**Arguments:**
+
+<ParamField path="package_file" type="path" required>
+  Path to the package definition file (e.g., `mypackage.pkg.lua`).
+</ParamField>
+
+**Options:**
+
+<ParamField path="--type" type="string" required>
+  The type of package to build. Common values:
+  - `source` - Build from source code
+  - `pre-compiled` - Package pre-built binaries
+  - Package-specific types defined in `pkg.lua`
+</ParamField>
+
+<ParamField path="-p, --platform" type="string[]" default="[current]">
+  Target platform(s) to build for. Can be specified multiple times.
+  
+  **Values:**
+  - `current` - Current system platform
+  - `all` - All supported platforms
+  - `linux-amd64` - Linux x86_64
+  - `linux-arm64` - Linux ARM64
+  - `darwin-amd64` - macOS Intel
+  - `darwin-arm64` - macOS Apple Silicon
+  - `windows-amd64` - Windows x86_64
+  - `windows-arm64` - Windows ARM64
+</ParamField>
+
+<ParamField path="--sub" type="string[]">
+  Build only specific sub-packages. If not specified, builds all sub-packages defined in the package.
+</ParamField>
+
+<ParamField path="--sign" type="string">
+  Sign the package with the specified PGP key (name or fingerprint). The key must be available in your GPG keyring.
+</ParamField>
+
+<ParamField path="--test" type="boolean" default="false">
+  Run tests before building the package. Build only proceeds if tests pass.
+</ParamField>
+
+<ParamField path="-o, --output-dir" type="path">
+  Directory to output the built package archive. Defaults to the current directory.
+</ParamField>
+
+**Examples:**
+
+<CodeGroup>
+```bash Build from source
+# Build for current platform
+zoi pkg build --type source myapp.pkg.lua
+
+# Build for specific platform
+zoi pkg build --type source --platform linux-amd64 myapp.pkg.lua
+
+# Build for multiple platforms
+zoi pkg build --type source -p linux-amd64 -p darwin-arm64 myapp.pkg.lua
+
+# Build all platforms
+zoi pkg build --type source --platform all myapp.pkg.lua
+```
+
+```bash Build with options
+# Build with tests
+zoi pkg build --type source --test myapp.pkg.lua
+
+# Build and sign
+zoi pkg build --type source --sign "John Doe" myapp.pkg.lua
+
+# Build to specific directory
+zoi pkg build --type source -o ./dist myapp.pkg.lua
+```
+
+```bash Build sub-packages
+# Build specific sub-packages only
+zoi pkg build --type source --sub base --sub dev myapp.pkg.lua
+
+# Build base sub-package for multiple platforms
+zoi pkg build --type source --sub base -p linux-amd64 -p darwin-arm64 myapp.pkg.lua
+```
+</CodeGroup>
+
+**Output:**
+
+```bash
+$ zoi pkg build --type source myapp.pkg.lua
+
+Building package 'myapp' version 1.0.0...
+Platform: linux-amd64
+Type: source
+
+Running build script...
+[build output...]
+
+Packaging files...
+Creating archive: myapp-1.0.0-linux-amd64.pkg.tar.zst
+Compressed size: 5.2 MB
+
+Package built successfully:
+  myapp-1.0.0-linux-amd64.pkg.tar.zst
+```
+
+---
+
+### package test
+
+Test a package from a `pkg.lua` file.
+
+```bash
+zoi package test [OPTIONS] <PACKAGE_FILE>
+zoi pkg test [OPTIONS] <PACKAGE_FILE>
+```
+
+Runs the test suite defined in the package's `pkg.lua` file. Uses the same options as `package build`.
+
+**Example:**
+
+```bash
+zoi pkg test myapp.pkg.lua
+
+# Test for specific platform
+zoi pkg test --platform linux-amd64 myapp.pkg.lua
+```
+
+**Output:**
+
+```bash
+$ zoi pkg test myapp.pkg.lua
+
+Running tests for 'myapp'...
+Platform: linux-amd64
+
+[test output...]
+
+✓ All tests passed
+```
+
+---
+
+### package install
+
+Install a package from a local `.pkg.tar.zst` archive.
+
+```bash
+zoi package install <ARCHIVE>
+zoi pkg install <ARCHIVE>
+```
+
+**Arguments:**
+
+<ParamField path="archive" type="path" required>
+  Path to the `.pkg.tar.zst` archive file to install.
+</ParamField>
+
+**Example:**
+
+```bash
+# Install from local archive
+zoi pkg install myapp-1.0.0-linux-amd64.pkg.tar.zst
+
+# Also works via main install command
+zoi install myapp-1.0.0-linux-amd64.pkg.tar.zst
+```
+
+## Package Definition File
+
+Packages are defined in Lua files (`pkg.lua`):
+
+```lua
+-- myapp.pkg.lua
+return {
+  name = "myapp",
+  version = "1.0.0",
+  description = "My awesome application",
+  license = "MIT",
+  homepage = "https://github.com/user/myapp",
+  
+  types = {
+    source = {
+      build = function()
+        -- Build from source
+        os.execute("make")
+      end,
+      
+      test = function()
+        -- Run tests
+        os.execute("make test")
+      end,
+      
+      package = function()
+        -- Package files
+        return {
+          ["bin/myapp"] = "bin/myapp",
+          ["share/doc/myapp/README.md"] = "README.md",
+        }
+      end,
+    },
+    
+    ["pre-compiled"] = {
+      -- For binary releases
+      url = "https://github.com/user/myapp/releases/download/v${version}/myapp-${platform}.tar.gz",
+      
+      package = function()
+        os.execute("tar xzf " .. downloaded_file)
+        return {
+          ["bin/myapp"] = "myapp",
+        }
+      end,
+    },
+  },
+  
+  dependencies = {
+    "libssl",
+    "libcurl",
+  },
+  
+  optional = {
+    "libnotify",
+  },
+}
+```
+
+## Build Process
+
+1. **Load Package Definition**: Parses `pkg.lua` file
+2. **Validate**: Checks required fields and platform support
+3. **Run Tests** (if `--test`): Executes test function
+4. **Execute Build**: Runs type-specific build function
+5. **Package Files**: Collects files to include in archive
+6. **Create Archive**: Compresses into `.pkg.tar.zst` format
+7. **Sign** (if `--sign`): Generates PGP signature
+8. **Output**: Saves to output directory
+
+## Archive Format
+
+Built packages use the `.pkg.tar.zst` format:
+
+```
+myapp-1.0.0-linux-amd64.pkg.tar.zst
+├── manifest.toml        # Package metadata
+├── files.json          # File list
+├── bin/
+│   └── myapp           # Binary files
+├── share/
+│   └── doc/
+│       └── README.md   # Documentation
+└── .PKGINFO           # Additional package info
+```
+
+**Compression:** Uses Zstandard (zstd) for fast compression/decompression.
+
+## Platform Targets
+
+### Format
+
+`<os>-<arch>`
+
+**Supported:**
+- `linux-amd64` - Linux on x86_64
+- `linux-arm64` - Linux on ARM64
+- `darwin-amd64` - macOS on Intel
+- `darwin-arm64` - macOS on Apple Silicon
+- `windows-amd64` - Windows on x86_64
+- `windows-arm64` - Windows on ARM64
+
+### Platform Variables
+
+Available in build scripts:
+- `${platform}` - Full platform string (e.g., `linux-amd64`)
+- `${os}` - OS name (e.g., `linux`)
+- `${arch}` - Architecture (e.g., `amd64`)
+
+## Signing Packages
+
+Packages can be signed with PGP:
+
+```bash
+# Sign with specific key
+zoi pkg build --type source --sign "john@example.com" myapp.pkg.lua
+
+# Sign with key fingerprint
+zoi pkg build --type source --sign "ABCD1234..." myapp.pkg.lua
+```
+
+**Requirements:**
+- GPG installed and configured
+- Private key available in keyring
+- Key must have signing capability
+
+**Output:**
+- `myapp-1.0.0-linux-amd64.pkg.tar.zst` - Package archive
+- `myapp-1.0.0-linux-amd64.pkg.tar.zst.sig` - Detached signature
+
+## Exit Codes
+
+- `0`: Build/test/install completed successfully
+- `1`: Build failed
+- `1`: Tests failed
+- `1`: Invalid package definition
+- `1`: Unsupported platform
+- `1`: Signing failed
+
+## Related Commands
+
+- [zoi install](/docs/zds/zoi/commands/install) - Install packages
+- [zoi pgp](/docs/zds/zoi/commands/all-commands#pgp) - Manage PGP keys
+- [zoi create](/docs/zds/zoi/commands/all-commands#create) - Create from template

@@ -1,0 +1,394 @@
+---
+title: "Backup & Restore"
+description: "Back up and restore your Zoi configuration and packages"
+---
+
+Regularly backing up your Zoi installation ensures you can recover your package configuration, installed packages, and custom settings in case of system failure or migration to a new machine.
+
+## What to Back Up
+
+Zoi stores data in several locations that you should include in backups:
+
+### User Data Directory
+
+**Linux/macOS:** `~/.zoi/`  
+**Windows:** `C:\Users\<username>\.zoi\`
+
+Contains:
+
+- **`pkgs/`** - Installed packages and binaries
+- **`repos/`** - Cloned package repositories
+- **`cache/`** - Downloaded package archives
+- **`pgps/`** - Imported PGP keys
+- **`hooks/`** - Custom global hooks
+- **`db/`** - Package database and installation records
+- **`transactions/`** - Transaction logs for rollback
+
+### System Data Directory (if using system-wide packages)
+
+**Linux/macOS:** `/etc/zoi/`  
+**Windows:** `C:\ProgramData\zoi\`
+
+Contains system-level configuration and packages installed with `--scope system`.
+
+### Project Configuration
+
+If you use `zoi.yaml` files in your projects, back them up along with your project source code.
+
+## Backup Strategies
+
+### Full Backup
+
+Back up the entire `.zoi` directory to preserve all packages, cache, and configuration:
+
+```bash
+# Linux/macOS
+tar -czf zoi-backup-$(date +%Y%m%d).tar.gz ~/.zoi/
+
+# Exclude cache to reduce backup size
+tar -czf zoi-backup-$(date +%Y%m%d).tar.gz \
+  --exclude='cache' \
+  --exclude='repos' \
+  ~/.zoi/
+```
+
+**Windows PowerShell:**
+
+```powershell
+Compress-Archive -Path $env:USERPROFILE\.zoi -DestinationPath zoi-backup-$(Get-Date -Format 'yyyyMMdd').zip
+```
+
+### Selective Backup
+
+Back up only critical data, excluding large or re-downloadable content:
+
+```bash
+# Back up database, configs, and PGP keys
+tar -czf zoi-config-backup.tar.gz \
+  ~/.zoi/db/ \
+  ~/.zoi/pgps/ \
+  ~/.zoi/hooks/
+```
+
+### Package List Export
+
+Export a list of installed packages to reinstall on a new system:
+
+```bash
+# Export installed packages
+zoi list --installed > installed-packages.txt
+```
+
+**Example output:**
+
+```
+nodejs@20.10.0
+python@3.11.5
+git@2.43.0
+curl@8.5.0
+```
+
+Restore packages on a new system:
+
+```bash
+# Install from list
+while read pkg; do
+  zoi install "$pkg"
+done < installed-packages.txt
+```
+
+## Automated Backups
+
+### Cron Job (Linux/macOS)
+
+Schedule automatic backups with cron:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add backup job (daily at 2 AM)
+0 2 * * * tar -czf ~/backups/zoi-backup-$(date +\%Y\%m\%d).tar.gz ~/.zoi/
+```
+
+### Task Scheduler (Windows)
+
+Create a scheduled task:
+
+```powershell
+# Create backup script
+$script = @'
+Compress-Archive -Path $env:USERPROFILE\.zoi `
+  -DestinationPath "$env:USERPROFILE\backups\zoi-backup-$(Get-Date -Format 'yyyyMMdd').zip" `
+  -Force
+'@
+
+Set-Content -Path "$env:USERPROFILE\backup-zoi.ps1" -Value $script
+
+# Schedule daily backup
+$action = New-ScheduledTaskAction -Execute "PowerShell.exe" `
+  -Argument "-File $env:USERPROFILE\backup-zoi.ps1"
+$trigger = New-ScheduledTaskTrigger -Daily -At 2am
+Register-ScheduledTask -TaskName "Zoi Backup" -Action $action -Trigger $trigger
+```
+
+### Git-Based Backup
+
+Store your Zoi configuration in a Git repository:
+
+```bash
+# Initialize Git in .zoi directory
+cd ~/.zoi
+git init
+
+# Create .gitignore to exclude large files
+cat > .gitignore <<EOF
+cache/
+repos/
+pkgs/store/
+EOF
+
+# Commit configuration
+git add .
+git commit -m "Initial Zoi backup"
+
+# Push to remote repository
+git remote add origin https://github.com/yourusername/zoi-backup
+git push -u origin main
+```
+
+Update the backup regularly:
+
+```bash
+cd ~/.zoi
+git add -A
+git commit -m "Backup $(date +%Y-%m-%d)"
+git push
+```
+
+## Restoring from Backup
+
+### Full Restore
+
+Restore the entire `.zoi` directory:
+
+```bash
+# Linux/macOS
+tar -xzf zoi-backup-20260304.tar.gz -C ~/
+
+# Windows PowerShell
+Expand-Archive -Path zoi-backup-20260304.zip -DestinationPath $env:USERPROFILE
+```
+
+Restart your shell to apply PATH changes:
+
+```bash
+exec $SHELL
+```
+
+### Selective Restore
+
+Restore only specific directories:
+
+```bash
+# Restore database and PGP keys
+tar -xzf zoi-config-backup.tar.gz -C ~/ \
+  .zoi/db/ \
+  .zoi/pgps/
+```
+
+### Reinstall from Package List
+
+Reinstall packages on a fresh system:
+
+<Steps>
+  <Step title="Install Zoi">
+    ```bash
+    curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    ```
+  </Step>
+
+  <Step title="Sync repositories">
+    ```bash
+    zoi sync
+    ```
+  </Step>
+
+  <Step title="Restore packages from list">
+    ```bash
+    while read pkg; do
+      zoi install "$pkg"
+    done < installed-packages.txt
+    ```
+  </Step>
+</Steps>
+
+## Migrating to a New System
+
+Move your Zoi installation to a new machine:
+
+<Steps>
+  <Step title="Back up on old system">
+    ```bash
+    tar -czf zoi-migration.tar.gz ~/.zoi/
+    ```
+  </Step>
+
+  <Step title="Transfer backup to new system">
+    Use SCP, rsync, USB drive, or cloud storage:
+
+    ```bash
+    # SCP
+    scp zoi-migration.tar.gz user@newhost:~/
+
+    # Rsync
+    rsync -avz ~/.zoi/ user@newhost:~/.zoi/
+    ```
+  </Step>
+
+  <Step title="Install Zoi on new system">
+    ```bash
+    curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    ```
+  </Step>
+
+  <Step title="Restore backup">
+    ```bash
+    tar -xzf zoi-migration.tar.gz -C ~/
+    ```
+  </Step>
+
+  <Step title="Update shell configuration">
+    Ensure PATH is set (usually automatic during Zoi installation):
+
+    ```bash
+    echo 'export PATH="$HOME/.zoi/pkgs/bin:$PATH"' >> ~/.bashrc
+    source ~/.bashrc
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Platform-specific packages (e.g., Linux binaries) won't work on different platforms (e.g., macOS). Reinstall packages using `zoi install` on the new system if platforms differ.
+</Note>
+
+## Cloud Backup Solutions
+
+Sync your Zoi directory to cloud storage:
+
+### Dropbox/Google Drive/OneDrive
+
+Create a symbolic link from your cloud folder:
+
+```bash
+# Move .zoi to cloud folder
+mv ~/.zoi ~/Dropbox/zoi-backup
+
+# Create symlink
+ln -s ~/Dropbox/zoi-backup ~/.zoi
+```
+
+**Windows:**
+
+```powershell
+# Move .zoi to OneDrive
+Move-Item $env:USERPROFILE\.zoi $env:OneDrive\zoi-backup
+
+# Create junction (requires admin)
+New-Item -ItemType Junction -Path $env:USERPROFILE\.zoi -Target $env:OneDrive\zoi-backup
+```
+
+<Warning>
+  Syncing large directories (packages, cache) to cloud storage can consume significant bandwidth and storage. Consider excluding `cache/` and `pkgs/store/`.
+</Warning>
+
+### Dedicated Backup Tools
+
+Use backup software to include `.zoi` in system backups:
+
+- **Linux:** Timeshift, rsnapshot, Duplicity
+- **macOS:** Time Machine
+- **Windows:** Windows Backup, Acronis, Veeam
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Back up regularly">
+    Schedule automatic backups (daily/weekly) to avoid data loss.
+  </Accordion>
+
+  <Accordion title="Exclude cache and repos">
+    These directories are large and can be re-downloaded. Exclude them to reduce backup size:
+    - `~/.zoi/cache/`
+    - `~/.zoi/repos/`
+  </Accordion>
+
+  <Accordion title="Test restores periodically">
+    Verify backups by restoring them on a test system or VM to ensure they work.
+  </Accordion>
+
+  <Accordion title="Version your backups">
+    Keep multiple backup versions (daily, weekly, monthly) to recover from different points in time.
+  </Accordion>
+
+  <Accordion title="Store backups off-site">
+    Keep backups on external drives or cloud storage to protect against hardware failure or disasters.
+  </Accordion>
+
+  <Accordion title="Back up project configurations">
+    Include `zoi.yaml` files in your project repositories to preserve project-specific dependencies.
+  </Accordion>
+</AccordionGroup>
+
+## Disaster Recovery
+
+If your system crashes or `.zoi` is corrupted:
+
+<Steps>
+  <Step title="Reinstall Zoi">
+    ```bash
+    curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    ```
+  </Step>
+
+  <Step title="Restore from latest backup">
+    ```bash
+    tar -xzf zoi-backup-latest.tar.gz -C ~/
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    ```bash
+    zoi list --installed
+    zoi doctor
+    ```
+  </Step>
+
+  <Step title="Fix any issues">
+    Run diagnostics and reinstall broken packages:
+
+    ```bash
+    zoi doctor
+    zoi sync
+    ```
+  </Step>
+</Steps>
+
+If no backup is available, reinstall packages from scratch using `zoi sync` and `zoi install`.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Offline Mode" icon="wifi-slash" href="/guides/offline-mode">
+    Use Zoi without internet connectivity
+  </Card>
+  <Card title="Project Configuration" icon="folder-tree" href="/project-config">
+    Manage project dependencies with zoi.yaml
+  </Card>
+  <Card title="Rollback" icon="clock-rotate-left" href="/commands/all-commands#rollback">
+    Roll back failed installations
+  </Card>
+  <Card title="Doctor Command" icon="stethoscope" href="/commands/all-commands#doctor">
+    Diagnose Zoi installation issues
+  </Card>
+</CardGroup>

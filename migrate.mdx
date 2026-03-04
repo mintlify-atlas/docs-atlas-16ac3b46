@@ -1,0 +1,515 @@
+---
+title: Migration Guide
+description: Migrate from other package managers and tools to Zoi
+---
+
+## Overview
+
+This guide helps you migrate to Zoi from other package managers. Zoi is designed to complement existing tools, so migration typically means adding Zoi alongside your current setup rather than replacing everything.
+
+## Migration Strategy
+
+The recommended approach is **gradual integration**:
+
+1. Install Zoi alongside your existing package manager
+2. Use Zoi for new cross-platform tools and user-level packages
+3. Keep system packages in their native managers (apt, pacman, etc.)
+4. Gradually move user tools to Zoi as needed
+
+## From Homebrew (macOS)
+
+### What to Migrate
+
+✅ **Migrate to Zoi:**
+- Cross-platform CLI tools (ripgrep, fd, jq, etc.)
+- Development tools used across multiple machines
+- User-specific utilities
+
+❌ **Keep in Homebrew:**
+- macOS-specific casks (GUI applications)
+- System libraries with deep macOS integration
+- Formula with macOS-specific optimizations
+
+### Migration Steps
+
+1. **Install Zoi:**
+   ```sh
+   brew install Zillowe/tap/zoi
+   # Or use the install script
+   curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+   ```
+
+2. **List your Homebrew packages:**
+   ```sh
+   brew list --formula
+   ```
+
+3. **Search for equivalents in Zoi:**
+   ```sh
+   zoi search <package_name>
+   ```
+
+4. **Install packages with Zoi:**
+   ```sh
+   zoi install @core/ripgrep
+   zoi install @main/gh
+   zoi install @zillowe/hello
+   ```
+
+5. **Optional - Remove from Homebrew:**
+   ```sh
+   brew uninstall <package_name>
+   ```
+
+### Example Migration
+
+```sh
+# Before (Homebrew)
+brew install ripgrep fd bat jq gh
+
+# After (Zoi)
+zoi install @core/ripgrep @core/fd @main/bat @core/jq @main/gh
+
+# Keep GUI apps in Homebrew
+brew install --cask visual-studio-code docker
+```
+
+### Homebrew Formula Equivalents
+
+Many popular Homebrew formulas have Zoi equivalents:
+
+| Homebrew | Zoi Package | Repository |
+|----------|-------------|------------|
+| `brew install node` | `zoi install @core/node` | Core |
+| `brew install python` | `zoi install @core/python` | Core |
+| `brew install ripgrep` | `zoi install @core/ripgrep` | Core |
+| `brew install fd` | `zoi install @core/fd` | Core |
+| `brew install bat` | `zoi install @main/bat` | Main |
+| `brew install jq` | `zoi install @core/jq` | Core |
+| `brew install gh` | `zoi install @main/gh` | Main |
+
+## From apt (Debian/Ubuntu)
+
+### What to Migrate
+
+✅ **Migrate to Zoi:**
+- User-level development tools
+- Tools needing newer versions than apt provides
+- Cross-platform tools for consistency
+
+❌ **Keep in apt:**
+- System libraries (libssl-dev, build-essential, etc.)
+- System services and daemons
+- Kernel and core system packages
+
+### Migration Steps
+
+1. **Install Zoi:**
+   ```sh
+   curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+   ```
+
+2. **List user-installed packages:**
+   ```sh
+   apt list --installed | grep -v "automatic"
+   ```
+
+3. **Install user tools with Zoi:**
+   ```sh
+   zoi install @core/ripgrep
+   zoi install @main/gh
+   ```
+
+4. **Keep system dependencies:**
+   ```sh
+   # Keep these in apt
+   sudo apt install libssl-dev build-essential pkg-config
+   ```
+
+### Example Migration
+
+```sh
+# System libraries - keep in apt
+sudo apt install libssl-dev build-essential pkg-config git
+
+# User tools - migrate to Zoi  
+zoi install @core/ripgrep @core/fd @main/bat
+
+# Integration in package definitions
+# Zoi packages can declare apt dependencies
+```
+
+## From pacman (Arch Linux)
+
+### What to Migrate
+
+✅ **Migrate to Zoi:**
+- AUR packages that are slow to build
+- User-level tools
+- Development utilities
+
+❌ **Keep in pacman:**
+- Core system packages
+- Libraries and dependencies
+- Desktop environment components
+
+### Migration Steps
+
+1. **Install Zoi:**
+   ```sh
+   # From AUR
+   yay -S zoi-bin
+   
+   # Or install script
+   curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+   ```
+
+2. **List explicitly installed packages:**
+   ```sh
+   pacman -Qe
+   ```
+
+3. **Migrate user tools:**
+   ```sh
+   zoi install @core/ripgrep @main/gh
+   ```
+
+### AUR Replacement
+
+For packages in the AUR, Zoi can be faster since it:
+- Provides pre-built binaries (no compilation)
+- Supports parallel downloads and installs
+- Works without sudo
+
+```sh
+# Before (AUR helper)
+yay -S visual-studio-code-bin  # Long build time
+
+# After (if available in Zoi)
+zoi install @community/vscode  # Pre-built binary
+```
+
+## From Nix
+
+### What to Migrate
+
+✅ **Migrate to Zoi:**
+- Simpler project environments
+- Teams without Nix expertise
+- Cross-platform tools
+
+❌ **Keep in Nix:**
+- Complex declarative system configurations
+- Projects requiring Nix's reproducibility guarantees
+- Functional package management workflows
+
+### Migration Steps
+
+1. **Install Zoi:**
+   ```sh
+   curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+   ```
+
+2. **Convert `shell.nix` to `zoi.yaml`:**
+
+   ```nix
+   # Before: shell.nix
+   { pkgs ? import <nixpkgs> {} }:
+   
+   pkgs.mkShell {
+     buildInputs = [
+       pkgs.nodejs
+       pkgs.python3
+       pkgs.ripgrep
+     ];
+   }
+   ```
+
+   ```yaml
+   # After: zoi.yaml
+   packages:
+     - name: nodejs
+       check: node --version
+     - name: python3
+       check: python3 --version
+     - name: ripgrep
+       check: rg --version
+   
+   dependencies:
+     - zoi:nodejs
+     - zoi:python3
+     - zoi:ripgrep
+   
+   environments:
+     dev:
+       - setup
+   
+   commands:
+     setup:
+       run: echo "Development environment ready"
+   ```
+
+3. **Activate environment:**
+   ```sh
+   # Before
+   nix-shell
+   
+   # After  
+   zoi env dev
+   ```
+
+### Coexistence with Nix
+
+Zoi and Nix can coexist:
+
+```nix
+# shell.nix with Zoi integration
+{ pkgs ? import <nixpkgs> {} }:
+
+pkgs.mkShell {
+  buildInputs = [
+    pkgs.git
+    pkgs.gnumake
+  ];
+  
+  shellHook = ''
+    # Use Zoi for project tools
+    if command -v zoi &> /dev/null; then
+      zoi env dev
+    fi
+  '';
+}
+```
+
+## From Language Package Managers
+
+### npm (Node.js)
+
+```sh
+# Global npm packages
+npm list -g --depth=0
+
+# Migrate global tools to Zoi
+# Before
+npm install -g typescript eslint prettier
+
+# After
+zoi install @main/typescript-bin
+# Keep project dependencies in package.json
+```
+
+### pip (Python)
+
+```sh
+# List globally installed packages
+pip list --user
+
+# Before
+pip install --user black flake8 mypy
+
+# After - use Zoi for CLI tools
+zoi install @main/black @main/ruff
+# Keep libraries in requirements.txt
+```
+
+### cargo (Rust)
+
+```sh
+# List cargo-installed binaries
+cargo install --list
+
+# Before
+cargo install ripgrep fd-find bat
+
+# After
+zoi install @core/ripgrep @core/fd @main/bat
+# Faster (pre-built) and doesn't require Rust toolchain
+```
+
+## Project Environment Migration
+
+### From Docker Compose
+
+For development environments (not production deployments):
+
+```yaml
+# Before: docker-compose.yml
+version: '3'
+services:
+  dev:
+    image: node:18
+    volumes:
+      - .:/app
+    command: npm run dev
+```
+
+```yaml
+# After: zoi.yaml
+packages:
+  - name: node
+    check: node --version
+
+dependencies:
+  - zoi:nodejs
+  - npm:dev-dependencies
+
+commands:
+  dev:
+    run: npm run dev
+
+environments:
+  dev:
+    - dev
+```
+
+### From Makefile
+
+Complement or replace Makefile targets:
+
+```makefile
+# Makefile
+.PHONY: setup
+setup:
+	brew install node python3 ripgrep
+	npm install
+	pip install -r requirements.txt
+```
+
+```yaml
+# zoi.yaml  
+environments:
+  setup:
+    - install-tools
+    - install-deps
+
+commands:
+  install-tools:
+    run: zoi install @core/nodejs @core/python @core/ripgrep
+    
+  install-deps:
+    run: |
+      npm install
+      pip install -r requirements.txt
+```
+
+## Automated Migration Tools
+
+### Generate `zoi.yaml` from existing configs
+
+Zoi can help generate a `zoi.yaml` from common config files:
+
+```sh
+# Analyze package.json, requirements.txt, etc.
+zoi init
+
+# This creates a zoi.yaml with detected dependencies
+```
+
+### Bulk Install
+
+Install multiple packages at once:
+
+```sh
+# From a list
+cat packages.txt | xargs zoi install
+
+# Or directly
+zoi install @core/ripgrep @core/fd @main/bat @core/jq
+```
+
+## Common Migration Patterns
+
+### Pattern 1: System + User Split
+
+```sh
+# System packages (requires sudo)
+sudo apt install libssl-dev build-essential
+
+# User tools (no sudo)
+zoi install @core/ripgrep @main/gh @main/bat
+```
+
+### Pattern 2: Platform-Specific + Zoi
+
+```sh
+# macOS-specific
+brew install --cask docker visual-studio-code
+
+# Cross-platform (managed by Zoi)
+zoi install @core/node @main/gh @core/ripgrep
+```
+
+### Pattern 3: Gradual Team Migration
+
+1. Add Zoi to CI/CD
+2. Document Zoi equivalents
+3. Create team `zoi.yaml` for new projects
+4. Gradually deprecate old package lists
+
+## Troubleshooting Migration
+
+### Package Not Found
+
+```sh
+# Search across all tiers
+zoi search <package_name>
+
+# Check community packages
+zoi repo add community
+zoi sync
+zoi search <package_name>
+```
+
+### Version Conflicts
+
+```sh
+# Pin specific version
+zoi install @core/node@18.0.0
+zoi pin node 18.0.0
+
+# Or use system package manager for that dependency
+```
+
+### PATH Issues
+
+```sh
+# Ensure Zoi binaries are in PATH
+# Zoi installs to ~/.zoi/bin by default
+
+# Add to shell profile
+echo 'export PATH="$HOME/.zoi/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+
+# Or use setup command
+make setup  # from source
+zoi shell bash  # generate completions and setup
+```
+
+## Migration Checklist
+
+- [ ] Install Zoi on your system
+- [ ] Sync package repositories: `zoi sync`
+- [ ] List current packages from existing manager
+- [ ] Identify user-level tools to migrate
+- [ ] Search for equivalents: `zoi search <package>`
+- [ ] Install packages: `zoi install <packages>`
+- [ ] Create `zoi.yaml` for project environments
+- [ ] Update team documentation
+- [ ] Verify PATH includes `~/.zoi/bin`
+- [ ] Test migrated tools work correctly
+- [ ] Remove old packages (optional)
+
+## Getting Help
+
+If you encounter issues during migration:
+
+- **Documentation:** [Zoi Docs](https://zillowe.qzz.io/docs/zds/zoi)
+- **Discord:** [Join our community](https://discord.gg/P4R7yaA3hf)
+- **Issues:** [Report on GitLab](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues)
+- **Package Requests:** Open an issue to request packages not yet in Zoidberg
+
+## Related Resources
+
+- [Comparisons](/docs/zds/zoi/comparisons) - Detailed feature comparisons
+- [Zoidberg](/docs/zds/zoi/zoidberg) - Official package registry
+- [Contributing](/docs/zds/zoi/contributing) - Add packages to Zoidberg

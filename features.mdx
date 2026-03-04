@@ -1,0 +1,193 @@
+---
+title: Features
+description: Key features and capabilities of Zoi package manager.
+---
+
+Zoi is a universal package manager and environment setup tool designed to simplify package management and environment configuration across multiple operating systems.
+
+## Core Features
+
+<CardGroup cols={2}>
+  <Card title="Cross-Platform Support" icon="computer">
+    Works seamlessly on Linux, macOS, and Windows with a unified interface and experience.
+  </Card>
+  
+  <Card title="Dynamic Package Definitions" icon="file-code">
+    Define packages with dynamic Lua scripts (`.pkg.lua`) for maximum flexibility and power.
+  </Card>
+  
+  <Card title="Universal Package Support" icon="box">
+    Install packages from pre-built binaries, compressed archives, or build them from source.
+  </Card>
+  
+  <Card title="Extensive Dependency Management" icon="sitemap">
+    Integrates with over 40 system and language package managers (apt, brew, cargo, npm, pip, go, bun, etc.).
+  </Card>
+</CardGroup>
+
+## Dependency Management
+
+<CardGroup cols={2}>
+  <Card title="Rich Dependencies" icon="link">
+    Define runtime and build dependencies with required, optional, and selectable options.
+  </Card>
+  
+  <Card title="Smart Provider Selection" icon="brain">
+    Automatically resolve dependency conflicts with intelligent provider selection.
+  </Card>
+  
+  <Card title="Virtual Packages" icon="ghost">
+    Support for virtual packages (`provides`) and package replacement (`replaces`).
+  </Card>
+  
+  <Card title="Multi-Manager Support" icon="layer-group">
+    Pull dependencies from system managers (apt, pacman) and language-specific tools (npm, pip, cargo).
+  </Card>
+</CardGroup>
+
+## Repository & Registry Features
+
+<CardGroup cols={2}>
+  <Card title="Repository-Based" icon="git-alt">
+    Use official, community, or your own private/public Git-based repositories.
+  </Card>
+  
+  <Card title="Multiple Registries" icon="database">
+    Manage and sync from multiple package registries simultaneously.
+  </Card>
+  
+  <Card title="Parallel Registry Sync" icon="sync">
+    Concurrently sync multiple package registries for significantly faster updates.
+  </Card>
+  
+  <Card title="Repository Tiers" icon="layer-group">
+    Organize packages by stability: core, main, extra, community, test, archive, and zillowe.
+  </Card>
+</CardGroup>
+
+## Security & Compliance
+
+<CardGroup cols={2}>
+  <Card title="Secure & Verifiable" icon="shield-check">
+    Verifies package integrity with checksums and authenticity with GPG signatures.
+  </Card>
+  
+  <Card title="Chain of Trust" icon="link">
+    Git commit signature verification for entire registries with built-in PGP keyring.
+  </Card>
+  
+  <Card title="Compliance & Audit Logging" icon="clipboard-list">
+    Persistent, tamper-evident audit log of all package operations viewable via `zoi history`.
+  </Card>
+  
+  <Card title="Enhanced Conflict Detection" icon="exclamation-triangle">
+    Prevents packages from accidentally overwriting existing files with pre-download checking.
+  </Card>
+</CardGroup>
+
+## Package Types
+
+Zoi supports different types of packages for various use cases:
+
+<CardGroup cols={2}>
+  <Card title="Package" icon="box">
+    A standard software package with binaries, libraries, and documentation.
+  </Card>
+  
+  <Card title="Collection" icon="boxes">
+    A meta-package that groups other packages together for easy installation.
+  </Card>
+  
+  <Card title="App" icon="rocket">
+    A template for bootstrapping new projects via `zoi create`.
+  </Card>
+  
+  <Card title="Extension" icon="puzzle-piece">
+    A package to extend Zoi's own functionality or configuration.
+  </Card>
+</CardGroup>
+
+## Project Environments
+
+<CardGroup cols={2}>
+  <Card title="Project-Specific Commands" icon="terminal">
+    Manage project-specific commands and environments using a local `zoi.yaml` file.
+  </Card>
+  
+  <Card title="Environment Management" icon="layer-group">
+    Define and run complex multi-command workflows with `zoi env`.
+  </Card>
+  
+  <Card title="Development Automation" icon="robot">
+    Automate build, test, lint, and deployment tasks with `zoi run`.
+  </Card>
+  
+  <Card title="Lockfile Support" icon="lock">
+    Use `zoi.lock` for reproducible project-local package installations.
+  </Card>
+</CardGroup>
+
+## Developer Tools
+
+<CardGroup cols={2}>
+  <Card title="Local Package Development" icon="hammer">
+    Dedicated `zoi package` command set (`build`, `install`, `test`) for creating packages locally.
+  </Card>
+  
+  <Card title="Interactive Search" icon="search">
+    Interactive TUI mode with result sorting and rich metadata via `zoi search -i`.
+  </Card>
+  
+  <Card title="System Health Checks" icon="stethoscope">
+    Proactive health checks with `zoi doctor` including orphaned package and broken symlink detection.
+  </Card>
+  
+  <Card title="Package Manual Pages" icon="book">
+    Read package manuals in the terminal with `zoi man`.
+  </Card>
+</CardGroup>
+
+## Advanced CLI Features
+
+Zoi provides a comprehensive set of CLI tools for package management:
+
+| Command | Description |
+|---------|-------------|
+| `zoi history` | Read the persistent audit trail of past transactions |
+| `zoi doctor` | Run system health checks and detect issues |
+| `zoi why` | Understand why a package is installed |
+| `zoi rollback` | Revert a package to its previous version or rollback the entire last transaction |
+| `zoi pin` | Pin a package to a specific version |
+| `zoi exec` | Run a package's binary without installing it |
+| `zoi search -i` | Interactive TUI search with rich metadata |
+| `zoi man` | View package documentation in the terminal |
+
+## Library Support
+
+Core functionality is available as a Rust library to be integrated into other applications. This allows developers to:
+
+- Embed Zoi's package management capabilities into custom tools
+- Build automation scripts with Rust
+- Create custom package managers based on Zoi's architecture
+
+See the [Library API documentation](/docs/zds/zoi/lib) for more information.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/docs/zds/zoi/installation">
+    Get started by installing Zoi on your system
+  </Card>
+  
+  <Card title="Repositories" icon="git-alt" href="/docs/zds/zoi/repositories">
+    Learn about repositories and registry management
+  </Card>
+  
+  <Card title="Dependencies" icon="sitemap" href="/docs/zds/zoi/dependencies">
+    Explore the 40+ supported package managers
+  </Card>
+  
+  <Card title="Project Config" icon="file-code" href="/docs/zds/zoi/project-config">
+    Configure project environments with zoi.yaml
+  </Card>
+</CardGroup>

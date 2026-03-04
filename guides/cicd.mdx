@@ -1,0 +1,580 @@
+---
+title: "CI/CD Integration"
+description: "Use Zoi in continuous integration and deployment pipelines"
+---
+
+Zoi integrates seamlessly with CI/CD platforms to manage build dependencies, reproducible environments, and package deployments.
+
+## Benefits of Using Zoi in CI/CD
+
+- **Reproducible builds**: Lock dependencies with exact versions
+- **Cross-platform**: Same package manager for Linux, macOS, and Windows runners
+- **Fast setup**: Install only required dependencies per job
+- **Caching**: Speed up builds by caching packages
+- **Project environments**: Use `zoi.yaml` to define all build dependencies
+
+## GitHub Actions
+
+### Basic Setup
+
+Install Zoi and use it in your workflow:
+
+```yaml .github/workflows/build.yml
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Zoi
+        run: |
+          curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+          echo "$HOME/.zoi/pkgs/bin" >> $GITHUB_PATH
+      
+      - name: Install dependencies
+        run: |
+          zoi sync
+          zoi install nodejs python gcc
+      
+      - name: Build project
+        run: |
+          zoi dev -- npm run build
+```
+
+### Caching Packages
+
+Cache Zoi packages to speed up subsequent runs:
+
+```yaml .github/workflows/build.yml
+name: Build with Cache
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Cache Zoi packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.zoi/pkgs
+            ~/.zoi/cache
+            ~/.zoi/repos
+          key: zoi-${{ runner.os }}-${{ hashFiles('zoi.yaml') }}
+          restore-keys: |
+            zoi-${{ runner.os }}-
+      
+      - name: Install Zoi
+        run: |
+          curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+          echo "$HOME/.zoi/pkgs/bin" >> $GITHUB_PATH
+      
+      - name: Install project dependencies
+        run: |
+          zoi sync
+          zoi install --project
+      
+      - name: Build
+        run: zoi dev -- make build
+```
+
+### Matrix Builds (Multi-Platform)
+
+Test across multiple platforms:
+
+```yaml .github/workflows/matrix.yml
+name: Multi-Platform Build
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Zoi (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+          echo "$HOME/.zoi/pkgs/bin" >> $GITHUB_PATH
+      
+      - name: Install Zoi (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          powershell -c "irm zillowe.pages.dev/scripts/zoi/install.ps1|iex"
+          echo "$env:USERPROFILE\.zoi\pkgs\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      
+      - name: Install dependencies
+        run: |
+          zoi sync
+          zoi install --project
+      
+      - name: Run tests
+        run: zoi dev -- npm test
+```
+
+### Building Packages
+
+Build and publish Zoi packages in CI:
+
+```yaml .github/workflows/release.yml
+name: Release Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux-amd64, linux-arm64, darwin-amd64, darwin-arm64]
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Zoi
+        run: |
+          curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+          echo "$HOME/.zoi/pkgs/bin" >> $GITHUB_PATH
+      
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          zoi pgp add --path key.asc --name release-key
+      
+      - name: Build package
+        run: |
+          zoi package build myapp.pkg.lua \
+            --type pre-compiled \
+            -p ${{ matrix.platform }} \
+            --sign release-key \
+            -o dist/
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: package-${{ matrix.platform }}
+          path: dist/*.pkg.tar.zst*
+  
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+      
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: package-*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## GitLab CI
+
+### Basic Pipeline
+
+```yaml .gitlab-ci.yml
+stages:
+  - build
+  - test
+
+variables:
+  ZOI_HOME: $CI_PROJECT_DIR/.zoi
+
+cache:
+  paths:
+    - .zoi/
+
+before_script:
+  - curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+  - export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+
+build:
+  stage: build
+  script:
+    - zoi sync
+    - zoi install --project
+    - zoi dev -- npm run build
+  artifacts:
+    paths:
+      - dist/
+
+test:
+  stage: test
+  script:
+    - zoi sync
+    - zoi install --project
+    - zoi dev -- npm test
+```
+
+### Multi-Platform with Docker
+
+```yaml .gitlab-ci.yml
+stages:
+  - build
+
+variables:
+  PLATFORMS: "linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64"
+
+.build_template:
+  stage: build
+  image: rust:latest
+  before_script:
+    - apt-get update && apt-get install -y curl
+    - curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    - export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+  script:
+    - zoi sync
+    - zoi package build myapp.pkg.lua --type pre-compiled -p $PLATFORM
+  artifacts:
+    paths:
+      - "*.pkg.tar.zst*"
+
+build:linux-amd64:
+  extends: .build_template
+  variables:
+    PLATFORM: linux-amd64
+
+build:linux-arm64:
+  extends: .build_template
+  variables:
+    PLATFORM: linux-arm64
+
+build:darwin-amd64:
+  extends: .build_template
+  tags:
+    - macos
+  variables:
+    PLATFORM: darwin-amd64
+```
+
+### Publishing on Tag
+
+```yaml .gitlab-ci.yml
+stages:
+  - build
+  - release
+
+build:package:
+  stage: build
+  script:
+    - curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    - export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+    - zoi package build myapp.pkg.lua --type pre-compiled -p linux-amd64
+  artifacts:
+    paths:
+      - "*.pkg.tar.zst*"
+  only:
+    - tags
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - |
+      release-cli create --name "Release $CI_COMMIT_TAG" \
+        --tag-name $CI_COMMIT_TAG \
+        --description "Automated release" \
+        --assets-link '{"name":"Package","url":"'$CI_PROJECT_URL'/-/jobs/artifacts/'$CI_COMMIT_TAG'/download?job=build:package"}'
+  only:
+    - tags
+```
+
+## CircleCI
+
+```yaml .circleci/config.yml
+version: 2.1
+
+jobs:
+  build:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      
+      - restore_cache:
+          keys:
+            - zoi-{{ checksum "zoi.yaml" }}
+            - zoi-
+      
+      - run:
+          name: Install Zoi
+          command: |
+            curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+            echo 'export PATH="$HOME/.zoi/pkgs/bin:$PATH"' >> $BASH_ENV
+      
+      - run:
+          name: Install dependencies
+          command: |
+            zoi sync
+            zoi install --project
+      
+      - save_cache:
+          key: zoi-{{ checksum "zoi.yaml" }}
+          paths:
+            - ~/.zoi
+      
+      - run:
+          name: Build
+          command: zoi dev -- npm run build
+      
+      - run:
+          name: Test
+          command: zoi dev -- npm test
+
+workflows:
+  version: 2
+  build_and_test:
+    jobs:
+      - build
+```
+
+## Jenkins
+
+```groovy Jenkinsfile
+pipeline {
+    agent any
+    
+    environment {
+        PATH = "$HOME/.zoi/pkgs/bin:$PATH"
+    }
+    
+    stages {
+        stage('Setup') {
+            steps {
+                sh 'curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash'
+                sh 'zoi sync'
+            }
+        }
+        
+        stage('Install Dependencies') {
+            steps {
+                sh 'zoi install --project'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'zoi dev -- make build'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                sh 'zoi dev -- make test'
+            }
+        }
+    }
+    
+    post {
+        always {
+            cleanWs()
+        }
+    }
+}
+```
+
+## Travis CI
+
+```yaml .travis.yml
+language: generic
+
+os:
+  - linux
+  - osx
+
+cache:
+  directories:
+    - $HOME/.zoi
+
+before_install:
+  - curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+  - export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+
+install:
+  - zoi sync
+  - zoi install --project
+
+script:
+  - zoi dev -- npm run build
+  - zoi dev -- npm test
+```
+
+## Docker Containers
+
+Use Zoi in Docker builds:
+
+```dockerfile Dockerfile
+FROM ubuntu:22.04
+
+# Install Zoi
+RUN apt-get update && apt-get install -y curl \
+    && curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash \
+    && apt-get clean
+
+# Add Zoi to PATH
+ENV PATH="/root/.zoi/pkgs/bin:$PATH"
+
+# Copy project files
+COPY . /app
+WORKDIR /app
+
+# Install dependencies
+RUN zoi sync && zoi install --project
+
+# Build application
+RUN zoi dev -- npm run build
+
+CMD ["zoi", "dev", "--", "npm", "start"]
+```
+
+### Multi-Stage Build
+
+```dockerfile Dockerfile
+# Build stage
+FROM ubuntu:22.04 AS builder
+
+RUN apt-get update && apt-get install -y curl \
+    && curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+
+ENV PATH="/root/.zoi/pkgs/bin:$PATH"
+
+COPY . /app
+WORKDIR /app
+
+RUN zoi sync && zoi install --project
+RUN zoi dev -- npm run build
+
+# Production stage
+FROM ubuntu:22.04
+
+COPY --from=builder /app/dist /app/dist
+COPY --from=builder /root/.zoi/pkgs /root/.zoi/pkgs
+
+ENV PATH="/root/.zoi/pkgs/bin:$PATH"
+
+WORKDIR /app
+CMD ["node", "dist/index.js"]
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use zoi.yaml for reproducibility">
+    Define all dependencies in a `zoi.yaml` file and commit it to version control. This ensures all CI runs use the same dependencies.
+  </Accordion>
+
+  <Accordion title="Cache Zoi packages">
+    Cache `~/.zoi/pkgs`, `~/.zoi/cache`, and `~/.zoi/repos` to avoid re-downloading packages on every build.
+  </Accordion>
+
+  <Accordion title="Use offline mode for faster builds">
+    After caching, enable offline mode with `ZOI_OFFLINE=1` to skip network operations.
+  </Accordion>
+
+  <Accordion title="Pin package versions">
+    Specify exact versions in `zoi.yaml` to prevent unexpected updates:
+    ```yaml
+    dependencies:
+      - nodejs@20.10.0
+      - python@3.11.5
+    ```
+  </Accordion>
+
+  <Accordion title="Separate build and runtime dependencies">
+    Install only required tools per stage to reduce container size.
+  </Accordion>
+
+  <Accordion title="Sign packages in CI">
+    Store GPG private keys in CI secrets and sign packages during builds for distribution.
+  </Accordion>
+</AccordionGroup>
+
+## Environment Variables
+
+Useful environment variables for CI/CD:
+
+- `ZOI_OFFLINE=1` - Enable offline mode
+- `ZOI_HOME=/custom/path` - Change Zoi data directory
+- `ZOI_NO_TELEMETRY=1` - Disable telemetry
+- `ZOI_LOG_LEVEL=debug` - Enable debug logging
+
+## Troubleshooting
+
+### "Command not found" after installing Zoi
+
+**Problem:** Zoi binaries not in PATH.
+
+**Solution:** Export PATH explicitly:
+
+```bash
+export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+```
+
+Or reload shell environment:
+
+```bash
+source ~/.bashrc  # or ~/.zshrc
+```
+
+### Cache misses on every build
+
+**Problem:** Cache key changes frequently.
+
+**Solution:** Use stable cache keys based on `zoi.yaml` hash, not git commit:
+
+```yaml
+key: zoi-${{ hashFiles('zoi.yaml') }}
+```
+
+### Slow package downloads in CI
+
+**Problem:** Re-downloading packages on every run.
+
+**Solution:**
+
+1. Enable caching (see examples above)
+2. Use offline mode after cache restore
+3. Pre-install common packages in custom Docker image
+
+### Permission denied errors
+
+**Problem:** CI runner lacks permissions to write to Zoi directories.
+
+**Solution:** Use user-scoped installation (default) or run with appropriate permissions.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Packages" icon="box" href="/guides/creating-packages">
+    Build packages in CI pipelines
+  </Card>
+  <Card title="Publishing Packages" icon="upload" href="/guides/publishing-packages">
+    Automate package publishing
+  </Card>
+  <Card title="Offline Mode" icon="wifi-slash" href="/guides/offline-mode">
+    Use Zoi without network access
+  </Card>
+  <Card title="Project Configuration" icon="folder-tree" href="/project-config">
+    Define dependencies with zoi.yaml
+  </Card>
+</CardGroup>

@@ -1,0 +1,264 @@
+---
+title: zoi search
+description: Search for packages by name, description, or tags
+---
+
+## Syntax
+
+```bash
+zoi search [OPTIONS] <TERM>
+zoi s [OPTIONS] <TERM>  # alias
+```
+
+## Description
+
+Searches for packages in configured registries. The search is case-insensitive and matches against:
+- Package names
+- Package descriptions
+- Package tags
+
+Results can be filtered by repository, package type, and tags. The command supports both table output (default) and an interactive TUI mode.
+
+## Options
+
+<ParamField path="term" type="string" required>
+  The search term to match against package names, descriptions, and tags.
+  
+  **Examples:**
+  - `editor` - Find all editors
+  - `python` - Find Python-related packages
+  - `cli` - Find command-line tools
+</ParamField>
+
+<ParamField path="--registry" type="string">
+  Filter results by registry handle.
+  
+  **Example:** `--registry zoidberg`
+</ParamField>
+
+<ParamField path="--repo" type="string">
+  Filter results by repository name.
+  
+  **Examples:**
+  - `--repo main` - Main repository
+  - `--repo extra` - Extra repository
+  - `--repo zoidberg/main` - Full repository path
+</ParamField>
+
+<ParamField path="--type" type="enum" values="[package, app, collection, extension]">
+  Filter by package type:
+  - `package`: Standard packages (libraries, tools)
+  - `app`: Applications
+  - `collection`: Package collections/meta-packages
+  - `extension`: Zoi extensions
+</ParamField>
+
+<ParamField path="-t, --tag" type="string[]">
+  Filter by tags (matches any of the specified tags). Can be specified multiple times or as comma-separated values.
+  
+  **Examples:**
+  - `--tag cli` - CLI tools
+  - `--tag editor,ide` - Editors or IDEs
+  - `-t cli -t dev` - CLI or dev tools
+</ParamField>
+
+<ParamField path="--sort" type="enum" values="[name, repo, type]" default="name">
+  Sort results by field:
+  - `name`: Alphabetically by package name
+  - `repo`: By repository
+  - `type`: By package type
+</ParamField>
+
+<ParamField path="-f, --files" type="boolean" default="false">
+  Search for files provided by packages instead of package names. Requires file lists to be indexed via `zoi sync --files`.
+  
+  Not compatible with `--interactive`.
+</ParamField>
+
+<ParamField path="-i, --interactive" type="boolean" default="false">
+  Open results in an interactive TUI (Terminal User Interface) for browsing with:
+  - Arrow keys or `j`/`k` to navigate
+  - Detailed package view in right pane
+  - `q` or `Esc` to exit
+  
+  Not compatible with `--files`.
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+```bash Basic search
+# Search for Python packages
+zoi search python
+
+# Search for editors
+zoi search editor
+
+# Using alias
+zoi s nodejs
+```
+
+```bash Filtered search
+# Search in specific repository
+zoi search --repo extra database
+
+# Search for apps only
+zoi search --type app editor
+
+# Search in specific registry
+zoi search --registry zoidberg compiler
+```
+
+```bash Tag-based search
+# Search by single tag
+zoi search --tag cli tool
+
+# Search by multiple tags (OR logic)
+zoi search --tag editor,ide code
+
+# Using short form
+zoi search -t cli -t dev build
+```
+
+```bash Sorted results
+# Sort by repository
+zoi search --sort repo python
+
+# Sort by package type
+zoi search --sort type tool
+```
+
+```bash Interactive mode
+# Browse search results interactively
+zoi search -i editor
+
+# Navigate with j/k, quit with q
+zoi search --interactive nodejs
+```
+
+```bash File search
+# Search for files (requires sync --files)
+zoi search --files libssl.so
+
+# Find which package provides a binary
+zoi search -f /usr/bin/gcc
+```
+</CodeGroup>
+
+## Output Format
+
+### Table Output (Default)
+
+```bash
+$ zoi search python
+
+:: Searching for packages matching 'python' ::
+
+┌────────────┬─────────┬──────┬─────────┬──────────────┬─────────────────────────────┐
+│ Package    │ Version │ Repo │ License │ Tags         │ Description                 │
+├────────────┼─────────┼──────┼─────────┼──────────────┼─────────────────────────────┤
+│ python     │ 3.12.0  │ main │ PSF     │ lang,runtime │ Python programming language │
+│ python-pip │ 23.3.1  │ main │ MIT     │ package-mgr  │ Python package installer    │
+└────────────┴─────────┴──────┴─────────┴──────────────┴─────────────────────────────┘
+```
+
+### Interactive TUI Mode
+
+```
+┌─ Packages ──────────────┐┌─ Details ─────────────────────────────┐
+│ >> python               ││ Name: python                          │
+│    python-pip           ││ Version: 3.12.0                       │
+│    python-setuptools    ││ Repo: main                            │
+│                         ││ License: PSF                          │
+│                         ││ Type: Package                         │
+│                         ││ Tags: lang, runtime, interpreter      │
+│                         ││                                       │
+│                         ││ Description:                          │
+│                         ││ Python is a high-level, interpreted   │
+│                         ││ programming language...               │
+└─────────────────────────┘└───────────────────────────────────────┘
+j/k or ↑/↓: navigate  q/Esc: quit
+```
+
+### File Search Output
+
+```bash
+$ zoi search --files libcrypto.so
+
+:: Searching for files matching 'libcrypto.so' ::
+
+┌─────────┬────────────────────────────────┬──────┐
+│ Package │ File Path                      │ Repo │
+├─────────┼────────────────────────────────┼──────┤
+│ openssl │ /usr/lib/libcrypto.so.3        │ main │
+│ openssl │ /usr/lib/x86_64/libcrypto.so.3 │ main │
+└─────────┴────────────────────────────────┴──────┘
+```
+
+## Search Behavior
+
+### Database vs. File System
+
+Zoi uses a local SQLite database for fast searching:
+
+1. **Database Search** (default): Searches indexed packages in `~/.zoi/pkgs/db/`
+2. **Fallback**: If database is not available, searches package files directly
+
+```bash
+# Ensure database is up to date
+zoi sync
+
+# Then search
+zoi search nodejs
+```
+
+### Search Scope
+
+Searches all configured registries:
+- Default registry (if set)
+- Additional registries (added via `zoi sync add`)
+
+See [zoi sync](/docs/zds/zoi/commands/sync) for registry management.
+
+## File Search Requirements
+
+File search requires indexed file lists:
+
+```bash
+# Index file lists (one-time or when needed)
+zoi sync --files
+
+# Then search for files
+zoi search --files libssl.so
+```
+
+Without indexing:
+
+```bash
+$ zoi search -f libssl.so
+
+No files found matching your query.
+Hint: Ensure you have run 'zoi sync --files' to index remote file lists.
+```
+
+## Exit Codes
+
+- `0`: Search completed successfully
+- `0`: No packages found (not an error)
+- `1`: Invalid search parameters
+- `1`: Database error
+
+## Performance Tips
+
+1. **Keep Database Updated**: Run `zoi sync` regularly
+2. **Use Filters**: Narrow results with `--repo`, `--type`, `--tag`
+3. **Tag Search**: Use tags for semantic search (e.g., `--tag editor`)
+4. **Interactive Mode**: Use `-i` for exploring many results
+
+## Related Commands
+
+- [zoi sync](/docs/zds/zoi/commands/sync) - Update package database
+- [zoi list](/docs/zds/zoi/commands/all-commands#list) - List installed packages
+- [zoi show](/docs/zds/zoi/commands/all-commands#show) - Show package details
+- [zoi provides](/docs/zds/zoi/commands/all-commands#provides) - Find package providing a file
+- [zoi install](/docs/zds/zoi/commands/install) - Install packages

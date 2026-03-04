@@ -1,0 +1,166 @@
+---
+title: Installation
+description: Add Zoi to your Rust project and start using the library API
+---
+
+# Installing Zoi Library
+
+This guide shows you how to add Zoi as a dependency to your Rust project.
+
+## Requirements
+
+<Info>
+  Zoi requires Rust 1.88.0 or later
+</Info>
+
+Check your Rust version:
+
+```bash
+rustc --version
+```
+
+If you need to update Rust:
+
+```bash
+rustup update
+```
+
+## Add Zoi to Your Project
+
+### Using Cargo CLI
+
+The easiest way to add Zoi to your project:
+
+```bash
+cargo add zoi-rs
+```
+
+This automatically adds the latest version to your `Cargo.toml`.
+
+### Manual Installation
+
+Alternatively, add Zoi manually to your `Cargo.toml`:
+
+```toml Cargo.toml
+[dependencies]
+zoi = "1.7.0"  # Replace with the latest version
+```
+
+<Tip>
+  Check [crates.io](https://crates.io/crates/zoi-rs) for the latest version number
+</Tip>
+
+### With Anyhow for Error Handling
+
+Since Zoi functions return `anyhow::Result`, you'll typically want to include `anyhow`:
+
+```toml Cargo.toml
+[dependencies]
+zoi = "1.7.0"
+anyhow = "1.0"
+```
+
+## Verify Installation
+
+Create a simple program to verify the installation:
+
+```rust src/main.rs
+use zoi::Scope;
+
+fn main() {
+    println!("Zoi library imported successfully!");
+    println!("Default scope: {:?}", Scope::default());
+}
+```
+
+Run your program:
+
+```bash
+cargo run
+```
+
+You should see:
+
+```
+Zoi library imported successfully!
+Default scope: User
+```
+
+## Import the Library
+
+In your Rust code, import the functions and types you need:
+
+```rust
+use zoi::{build, install_package, uninstall_package, Scope};
+use anyhow::Result;
+use std::path::Path;
+```
+
+### Available Exports
+
+Zoi exports the following public API:
+
+**Functions:**
+- `build()` - Build packages from source
+- `install_package()` - Install package archives
+- `uninstall_package()` - Remove installed packages
+
+**Types:**
+- `Scope` - Installation scope enum (User, System, Project)
+- `types` - Module containing package metadata types
+
+**Modules:**
+- `cli` - Command-line interface utilities
+- `cmd` - Command implementations
+- `pkg` - Package management core
+- `project` - Project environment handling
+- `utils` - Utility functions
+
+<Note>
+  Most users only need the three main functions and the `Scope` type. Advanced usage may require types from the `types` module.
+</Note>
+
+## Platform Support
+
+Zoi supports the following platforms:
+
+- Linux (x86_64, aarch64)
+- macOS (x86_64, aarch64)
+- Windows (x86_64)
+
+## Dependencies
+
+Zoi has several system dependencies that are automatically handled:
+
+- OpenSSL (vendored by default)
+- SQLite (bundled)
+- Compression libraries (zstd, xz2, flate2)
+
+<Warning>
+  On some Linux distributions, you may need to install build essentials:
+  
+  ```bash
+  # Debian/Ubuntu
+  sudo apt-get install build-essential pkg-config
+  
+  # Fedora/RHEL
+  sudo dnf install gcc pkg-config
+  ```
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/docs/zds/zoi/lib/api-reference">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Examples" icon="code" href="/docs/zds/zoi/lib/examples">
+    See practical code examples
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [Zoi on crates.io](https://crates.io/crates/zoi-rs)
+- [API documentation on docs.rs](https://docs.rs/zoi-rs/latest/zoi)
+- [Zoi GitHub repository](https://github.com/Zillowe/Zoi)

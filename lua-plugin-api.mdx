@@ -1,0 +1,539 @@
+---
+title: Plugin API Reference
+description: Create Zoi plugins to extend functionality with custom commands and hooks
+---
+
+Zoi's plugin system allows you to extend Zoi with custom commands, hooks, and UI interactions using Lua. Plugins are stored in `~/.zoi/plugins/` and are automatically loaded on startup.
+
+## Quick Start
+
+Create a plugin file in `~/.zoi/plugins/hello.lua`:
+
+```lua
+zoi.register_command({
+  name = "hello",
+  description = "Print a greeting",
+  callback = function(args)
+    zoi.ui.print("Hello, " .. (args[1] or "World") .. "!", "green")
+  end
+})
+```
+
+Run it:
+```bash
+zoi hello Alice
+# Output: Hello, Alice!
+```
+
+## Plugin Structure
+
+Plugins are Lua files that use the global `zoi` API object.
+
+### Basic Plugin Template
+
+```lua
+-- ~/.zoi/plugins/my-plugin.lua
+
+-- Register custom commands
+zoi.register_command({
+  name = "my-command",
+  description = "Does something useful",
+  callback = function(args)
+    -- Command implementation
+  end
+})
+
+-- Register hooks
+zoi.on_post_install(function(manifest)
+  zoi.ui.print("Package installed: " .. manifest.name, "green")
+end)
+```
+
+## Registering Commands
+
+### `zoi.register_command(config)`
+
+Register a custom command that can be invoked as `zoi <command-name>`.
+
+**Parameters:**
+- `config` (table): Command configuration
+  - `name` (string): Command name
+  - `description` (string): Help text
+  - `callback` (function): Function to execute when command is called
+    - Takes `args` (array of strings): Command-line arguments
+
+**Example:**
+```lua
+zoi.register_command({
+  name = "cleanup",
+  description = "Remove old package caches",
+  callback = function(args)
+    local result = zoi.sh("rm -rf ~/.zoi/cache/*")
+    if result == 0 then
+      zoi.ui.print("Cache cleaned", "green")
+    else
+      zoi.ui.print("Failed to clean cache", "red")
+    end
+  end
+})
+```
+
+### Simplified Syntax
+
+```lua
+zoi.register_command("greet", function(args)
+  print("Hello!")
+end)
+```
+
+## Lifecycle Hooks
+
+Plugins can react to package lifecycle events.
+
+### `zoi.on_pre_install(callback)`
+
+Called before a package is installed.
+
+**Parameters:**
+- `callback` (function): Hook function
+  - Receives `package` (table): Package metadata
+
+**Example:**
+```lua
+zoi.on_pre_install(function(pkg)
+  if pkg.license == "AGPL-3.0" then
+    zoi.ui.print("Warning: AGPL license detected", "yellow")
+  end
+end)
+```
+
+### `zoi.on_post_install(callback)`
+
+Called after a package is successfully installed.
+
+**Parameters:**
+- `callback` (function): Hook function
+  - Receives `manifest` (table): Install manifest with package details
+
+**Example:**
+```lua
+zoi.on_post_install(function(manifest)
+  -- Track installations
+  local count = tonumber(zoi.get_data("install_count")) or 0
+  zoi.set_data("install_count", count + 1)
+  
+  zoi.ui.print("Total packages installed: " .. (count + 1), "cyan")
+end)
+```
+
+### `zoi.on_pre_uninstall(callback)`
+
+Called before a package is uninstalled.
+
+**Parameters:**
+- Receives `manifest` (table): Package install manifest
+
+### `zoi.on_post_uninstall(callback)`
+
+Called after a package is uninstalled.
+
+### `zoi.on_pre_sync(callback)`
+
+Called before syncing package databases.
+
+**Example:**
+```lua
+zoi.on_pre_sync(function()
+  zoi.ui.print("Starting database sync...", "cyan")
+end)
+```
+
+### `zoi.on_post_sync(callback)`
+
+Called after syncing package databases.
+
+### `zoi.on_rollback(callback)`
+
+Called when a rollback operation occurs.
+
+### Extension Hooks
+
+- `zoi.on_pre_extension_add(callback)`
+- `zoi.on_post_extension_add(callback)`
+- `zoi.on_pre_extension_remove(callback)`
+- `zoi.on_post_extension_remove(callback)`
+
+### Project Hooks
+
+- `zoi.on_pre_create(callback)` - Before project creation
+- `zoi.on_post_create(callback)` - After project creation
+
+## Data API
+
+Plugins can persist data across sessions.
+
+### `zoi.set_data(key, value)`
+
+Store a value in persistent plugin state.
+
+**Parameters:**
+- `key` (string): Data key
+- `value` (string|number|boolean): Value to store
+
+**Example:**
+```lua
+zoi.set_data("last_sync", os.time())
+zoi.set_data("username", "alice")
+zoi.set_data("count", 42)
+```
+
+### `zoi.get_data(key)`
+
+Retrieve a stored value.
+
+**Parameters:**
+- `key` (string): Data key
+
+**Returns:** Stored value or `nil`
+
+**Example:**
+```lua
+local last_sync = zoi.get_data("last_sync")
+if last_sync then
+  local elapsed = os.time() - tonumber(last_sync)
+  zoi.ui.print("Last sync: " .. elapsed .. " seconds ago")
+end
+```
+
+**Storage Location:** `~/.zoi/plugins/state.json`
+
+## Package Queries
+
+### `zoi.list_installed()`
+
+Get a list of all installed packages.
+
+**Returns:** Array of install manifests
+
+**Example:**
+```lua
+local packages = zoi.list_installed()
+for _, pkg in ipairs(packages) do
+  print(pkg.name .. " v" .. pkg.version)
+end
+```
+
+### `zoi.get_package(name)`
+
+Fetch package metadata from repositories.
+
+**Parameters:**
+- `name` (string): Package name (e.g., "git", "core/gcc")
+
+**Returns:** Package table with metadata
+
+**Example:**
+```lua
+local pkg = zoi.get_package("python")
+print("Python version: " .. pkg.version)
+print("License: " .. pkg.license)
+```
+
+## UI Utilities
+
+### `zoi.ui.print(text, color?)`
+
+Print colored text to the console.
+
+**Parameters:**
+- `text` (string): Text to print
+- `color` (string, optional): Color name
+
+**Supported Colors:** `"red"`, `"green"`, `"yellow"`, `"blue"`, `"cyan"`, `"magenta"`
+
+**Example:**
+```lua
+zoi.ui.print("Success!", "green")
+zoi.ui.print("Warning: Old version", "yellow")
+zoi.ui.print("Error occurred", "red")
+```
+
+### `zoi.ui.confirm(prompt)`
+
+Prompt the user for yes/no confirmation.
+
+**Parameters:**
+- `prompt` (string): Question to ask
+
+**Returns:** Boolean (true if user confirmed)
+
+**Example:**
+```lua
+if zoi.ui.confirm("Do you want to continue?") then
+  zoi.ui.print("Proceeding...", "green")
+else
+  zoi.ui.print("Cancelled", "red")
+  return
+end
+```
+
+### `zoi.ui.select(prompt, options)`
+
+Prompt the user to select from a list.
+
+**Parameters:**
+- `prompt` (string): Selection prompt
+- `options` (array): List of option strings
+
+**Returns:** Selected index (1-based) or `nil` if cancelled
+
+**Example:**
+```lua
+local choice = zoi.ui.select(
+  "Choose a database backend:",
+  { "PostgreSQL", "MySQL", "SQLite" }
+)
+
+if choice == 1 then
+  zoi.sh("zoi install postgresql")
+elseif choice == 2 then
+  zoi.sh("zoi install mysql")
+elseif choice == 3 then
+  zoi.sh("zoi install sqlite")
+end
+```
+
+### `zoi.ui.table(headers, rows)`
+
+Display a formatted table.
+
+**Parameters:**
+- `headers` (array): Column headers
+- `rows` (array): Array of row arrays
+
+**Example:**
+```lua
+local packages = zoi.list_installed()
+local rows = {}
+
+for _, pkg in ipairs(packages) do
+  table.insert(rows, { pkg.name, pkg.version, pkg.scope })
+end
+
+zoi.ui.table(
+  { "Package", "Version", "Scope" },
+  rows
+)
+```
+
+## Shell Execution
+
+### `zoi.sh(command)`
+
+Execute a shell command.
+
+**Parameters:**
+- `command` (string): Shell command to run
+
+**Returns:** Exit code (integer)
+
+**Example:**
+```lua
+local result = zoi.sh("git status")
+if result == 0 then
+  zoi.ui.print("Git repository is clean", "green")
+else
+  zoi.ui.print("Not a git repository", "yellow")
+end
+```
+
+## System Information
+
+### `zoi.system`
+
+Access system information.
+
+**Fields:**
+- `zoi.system.os` (string): Operating system ("linux", "darwin", "windows")
+- `zoi.system.arch` (string): Architecture ("amd64", "arm64")
+
+**Example:**
+```lua
+if zoi.system.os == "linux" and zoi.system.arch == "amd64" then
+  zoi.ui.print("Running on Linux x86_64")
+end
+```
+
+### `zoi.version`
+
+Zoi version string.
+
+**Example:**
+```lua
+zoi.ui.print("Zoi version: " .. zoi.version)
+```
+
+## Project Information
+
+### `zoi.project`
+
+Access to project configuration (if in a Zoi project directory).
+
+**Fields:**
+- `zoi.project.name` (string): Project name
+- `zoi.project.packages` (table): Project dependencies
+
+**Example:**
+```lua
+if zoi.project then
+  zoi.ui.print("Project: " .. zoi.project.name, "cyan")
+else
+  zoi.ui.print("Not in a Zoi project", "yellow")
+end
+```
+
+## File Imports
+
+### `IMPORT(filename)`
+
+Import a file from the plugin directory.
+
+**Parameters:**
+- `filename` (string): File to import (relative to `~/.zoi/plugins/`)
+
+**Returns:** File contents (string) or parsed JSON (table)
+
+**Example:**
+
+**~/.zoi/plugins/config.json:**
+```json
+{
+  "api_key": "secret123",
+  "endpoint": "https://api.example.com"
+}
+```
+
+**~/.zoi/plugins/api-plugin.lua:**
+```lua
+local config = IMPORT("config.json")
+
+zoi.register_command("api-call", function(args)
+  local url = config.endpoint .. "/" .. args[1]
+  zoi.sh("curl -H 'Authorization: " .. config.api_key .. "' " .. url)
+end)
+```
+
+## Example Plugins
+
+### Package Statistics
+
+```lua
+-- Track installation statistics
+zoi.on_post_install(function(manifest)
+  local count = tonumber(zoi.get_data("total_installs")) or 0
+  zoi.set_data("total_installs", count + 1)
+end)
+
+zoi.register_command({
+  name = "stats",
+  description = "Show package statistics",
+  callback = function()
+    local total = zoi.get_data("total_installs") or 0
+    local installed = #zoi.list_installed()
+    
+    zoi.ui.print("=== Package Statistics ===", "cyan")
+    zoi.ui.print("Total installations: " .. total)
+    zoi.ui.print("Currently installed: " .. installed)
+  end
+})
+```
+
+### Auto-Update Checker
+
+```lua
+zoi.on_post_sync(function()
+  local last_check = zoi.get_data("last_update_check")
+  local now = os.time()
+  
+  -- Check once per day
+  if not last_check or (now - tonumber(last_check) > 86400) then
+    zoi.set_data("last_update_check", now)
+    
+    local result = zoi.sh("zoi list --upgradable | wc -l")
+    zoi.ui.print("Checking for package updates...", "cyan")
+  end
+end)
+```
+
+### License Reporter
+
+```lua
+zoi.register_command({
+  name = "licenses",
+  description = "Show licenses of all installed packages",
+  callback = function()
+    local packages = zoi.list_installed()
+    local license_map = {}
+    
+    -- Count licenses
+    for _, pkg in ipairs(packages) do
+      local info = zoi.get_package(pkg.name)
+      local license = info.license or "Unknown"
+      license_map[license] = (license_map[license] or 0) + 1
+    end
+    
+    -- Display table
+    local rows = {}
+    for license, count in pairs(license_map) do
+      table.insert(rows, { license, tostring(count) })
+    end
+    
+    zoi.ui.table({ "License", "Count" }, rows)
+  end
+})
+```
+
+### Development Workflow
+
+```lua
+zoi.register_command({
+  name = "dev-setup",
+  description = "Install common development tools",
+  callback = function(args)
+    local tools = { "git", "gcc", "make", "cmake", "python", "nodejs" }
+    
+    zoi.ui.print("Installing development tools...", "cyan")
+    
+    for _, tool in ipairs(tools) do
+      zoi.ui.print("Installing " .. tool .. "...", "blue")
+      local result = zoi.sh("zoi install " .. tool)
+      if result ~= 0 then
+        zoi.ui.print("Failed to install " .. tool, "red")
+      end
+    end
+    
+    zoi.ui.print("Development environment ready!", "green")
+  end
+})
+```
+
+## Plugin Discovery
+
+List all registered plugin commands:
+```bash
+zoi help
+# Shows built-in commands and plugin commands
+```
+
+## Best Practices
+
+1. **Namespace your commands**: Use prefixes to avoid conflicts (e.g., `myplugin-command`)
+2. **Handle errors gracefully**: Check return values and provide helpful error messages
+3. **Use data storage sparingly**: Store only essential state
+4. **Document your plugins**: Add description strings to commands
+5. **Test hooks carefully**: Hooks run for every operation, so keep them efficient
+
+## See Also
+
+- [Extensions Guide](/docs/zds/zoi/extensions) - Creating and using Zoi extensions
+- [Lua API Reference](/docs/zds/zoi/lua-api) - Package Lua API

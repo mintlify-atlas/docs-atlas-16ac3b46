@@ -1,0 +1,482 @@
+---
+title: Examples
+description: Real-world code examples for using the Zoi library API
+---
+
+# Usage Examples
+
+Practical examples demonstrating how to use Zoi as a library in your Rust applications.
+
+## Basic Package Installation
+
+Install a package from a local archive file:
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let archive_path = Path::new("nodejs-20.0.0-linux-amd64.pkg.tar.zst");
+    
+    let installed_files = install_package(
+        archive_path,
+        Some(Scope::User),
+        "local",
+        true,  // Auto-confirm prompts
+        None   // Install all default sub-packages
+    )?;
+    
+    println!("Package installed successfully!");
+    println!("Installed {} files", installed_files.len());
+    
+    Ok(())
+}
+```
+
+## Installing with Sub-packages
+
+Install specific sub-packages from a split package:
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let archive_path = Path::new("gcc-13.0.0-linux-amd64.pkg.tar.zst");
+    
+    // Only install the base compiler and development files
+    let sub_packages = Some(vec![
+        "base".to_string(),
+        "dev".to_string(),
+    ]);
+    
+    let installed_files = install_package(
+        archive_path,
+        Some(Scope::User),
+        "zoidberg",
+        true,
+        sub_packages
+    )?;
+    
+    println!("Installed sub-packages: {} files", installed_files.len());
+    
+    Ok(())
+}
+```
+
+## Building Packages
+
+Build a package from a `.pkg.lua` definition file:
+
+```rust
+use zoi::build;
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let package_file = Path::new("my-tool.pkg.lua");
+    let build_type = "source";
+    let platforms = vec![
+        "linux-amd64".to_string(),
+        "linux-arm64".to_string(),
+    ];
+    
+    build(package_file, build_type, &platforms, None)?;
+    
+    println!("Package built successfully!");
+    println!("Output: my-tool-*.pkg.tar.zst");
+    
+    Ok(())
+}
+```
+
+## Building with Package Signing
+
+Build and sign a package with a PGP key:
+
+```rust
+use zoi::build;
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let package_file = Path::new("my-package.pkg.lua");
+    let build_type = "source";
+    let platforms = vec!["linux-amd64".to_string()];
+    let sign_key = Some("my-gpg-key@example.com".to_string());
+    
+    build(package_file, build_type, &platforms, sign_key)?;
+    
+    println!("Package built and signed!");
+    
+    Ok(())
+}
+```
+
+## Uninstalling Packages
+
+Remove an installed package:
+
+```rust
+use zoi::{uninstall_package, Scope};
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    // Uninstall from user scope
+    uninstall_package("nodejs", Some(Scope::User))?;
+    
+    println!("Package uninstalled successfully!");
+    
+    Ok(())
+}
+```
+
+## Uninstalling from Any Scope
+
+Search all scopes and uninstall:
+
+```rust
+use zoi::uninstall_package;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    // Let Zoi search all scopes
+    uninstall_package("python", None)?;
+    
+    println!("Package removed from all scopes!");
+    
+    Ok(())
+}
+```
+
+## Working with Different Scopes
+
+Manage packages across different installation scopes:
+
+```rust
+use zoi::{install_package, uninstall_package, Scope};
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let archive = Path::new("tool-1.0.0-linux-amd64.pkg.tar.zst");
+    
+    // Install in project scope for development
+    install_package(
+        archive,
+        Some(Scope::Project),
+        "local",
+        true,
+        None
+    )?;
+    println!("Installed in project scope");
+    
+    // Later, install system-wide for production
+    install_package(
+        archive,
+        Some(Scope::System),
+        "local",
+        true,
+        None
+    )?;
+    println!("Installed in system scope");
+    
+    // Clean up project installation
+    uninstall_package("tool", Some(Scope::Project))?;
+    println!("Removed from project scope");
+    
+    Ok(())
+}
+```
+
+## Error Handling with Context
+
+Properly handle and add context to errors:
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use anyhow::{Context, Result};
+
+fn install_from_registry(package_name: &str, archive_path: &Path) -> Result<()> {
+    let installed_files = install_package(
+        archive_path,
+        Some(Scope::User),
+        "zoidberg",
+        true,
+        None
+    )
+    .with_context(|| format!("Failed to install package: {}", package_name))?;
+    
+    println!("Successfully installed {} with {} files", 
+             package_name, 
+             installed_files.len());
+    
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let archive = Path::new("nodejs-20.0.0-linux-amd64.pkg.tar.zst");
+    
+    if let Err(e) = install_from_registry("nodejs", archive) {
+        eprintln!("Installation failed: {:?}", e);
+        // Handle the error appropriately
+        return Err(e);
+    }
+    
+    Ok(())
+}
+```
+
+## Multi-platform Build Pipeline
+
+Build packages for multiple platforms in a CI/CD pipeline:
+
+```rust
+use zoi::build;
+use std::path::Path;
+use anyhow::{Context, Result};
+
+fn build_for_all_platforms(pkg_file: &Path) -> Result<()> {
+    let platforms = vec![
+        "linux-amd64".to_string(),
+        "linux-arm64".to_string(),
+        "darwin-amd64".to_string(),
+        "darwin-arm64".to_string(),
+        "windows-amd64".to_string(),
+    ];
+    
+    println!("Building for {} platforms...", platforms.len());
+    
+    build(pkg_file, "source", &platforms, None)
+        .context("Multi-platform build failed")?;
+    
+    println!("All platform builds completed successfully!");
+    
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    let package = Path::new("my-app.pkg.lua");
+    build_for_all_platforms(package)?;
+    Ok(())
+}
+```
+
+## Batch Package Installation
+
+Install multiple packages programmatically:
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use anyhow::{Context, Result};
+
+struct PackageInfo {
+    name: &'static str,
+    archive: &'static str,
+}
+
+fn main() -> Result<()> {
+    let packages = vec![
+        PackageInfo { 
+            name: "nodejs", 
+            archive: "nodejs-20.0.0-linux-amd64.pkg.tar.zst" 
+        },
+        PackageInfo { 
+            name: "python", 
+            archive: "python-3.12.0-linux-amd64.pkg.tar.zst" 
+        },
+        PackageInfo { 
+            name: "rust", 
+            archive: "rust-1.75.0-linux-amd64.pkg.tar.zst" 
+        },
+    ];
+    
+    for pkg in packages {
+        println!("Installing {}...", pkg.name);
+        
+        let archive_path = Path::new(pkg.archive);
+        let files = install_package(
+            archive_path,
+            Some(Scope::User),
+            "zoidberg",
+            true,
+            None
+        )
+        .with_context(|| format!("Failed to install {}", pkg.name))?;
+        
+        println!("  {} installed ({} files)", pkg.name, files.len());
+    }
+    
+    println!("\nAll packages installed successfully!");
+    
+    Ok(())
+}
+```
+
+## Conditional Installation Based on Platform
+
+Install platform-specific packages:
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use anyhow::Result;
+
+fn install_platform_package() -> Result<()> {
+    let (archive_path, package_name) = if cfg!(target_os = "linux") {
+        ("tool-1.0.0-linux-amd64.pkg.tar.zst", "tool (Linux)")
+    } else if cfg!(target_os = "macos") {
+        ("tool-1.0.0-darwin-arm64.pkg.tar.zst", "tool (macOS)")
+    } else if cfg!(target_os = "windows") {
+        ("tool-1.0.0-windows-amd64.pkg.tar.zst", "tool (Windows)")
+    } else {
+        return Err(anyhow::anyhow!("Unsupported platform"));
+    };
+    
+    println!("Installing {}...", package_name);
+    
+    install_package(
+        Path::new(archive_path),
+        Some(Scope::User),
+        "local",
+        true,
+        None
+    )?;
+    
+    println!("Platform-specific package installed!");
+    
+    Ok(())
+}
+
+fn main() -> Result<()> {
+    install_platform_package()
+}
+```
+
+## Tracking Installed Files
+
+Keep track of installed files for cleanup or verification:
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use std::fs;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let archive = Path::new("myapp-1.0.0-linux-amd64.pkg.tar.zst");
+    
+    let installed_files = install_package(
+        archive,
+        Some(Scope::User),
+        "local",
+        true,
+        None
+    )?;
+    
+    println!("Package installed. Files:");
+    for file in &installed_files {
+        println!("  - {}", file);
+    }
+    
+    // Save to a manifest file for later reference
+    let manifest = installed_files.join("\n");
+    fs::write("installed_files.txt", manifest)?;
+    
+    println!("\nFile list saved to installed_files.txt");
+    
+    Ok(())
+}
+```
+
+## Integration with Custom Package Manager
+
+Example of integrating Zoi into a custom package manager:
+
+```rust
+use zoi::{install_package, uninstall_package, Scope};
+use std::path::PathBuf;
+use anyhow::{Context, Result};
+
+struct CustomPackageManager {
+    cache_dir: PathBuf,
+    scope: Scope,
+}
+
+impl CustomPackageManager {
+    fn new(cache_dir: PathBuf) -> Self {
+        Self {
+            cache_dir,
+            scope: Scope::User,
+        }
+    }
+    
+    fn install(&self, package_name: &str, version: &str) -> Result<()> {
+        let archive_name = format!(
+            "{}-{}-linux-amd64.pkg.tar.zst", 
+            package_name, 
+            version
+        );
+        let archive_path = self.cache_dir.join(&archive_name);
+        
+        println!("Installing {} v{}", package_name, version);
+        
+        install_package(
+            &archive_path,
+            Some(self.scope),
+            "custom",
+            true,
+            None
+        )
+        .with_context(|| {
+            format!("Failed to install {} v{}", package_name, version)
+        })?;
+        
+        println!("Successfully installed {} v{}", package_name, version);
+        Ok(())
+    }
+    
+    fn remove(&self, package_name: &str) -> Result<()> {
+        println!("Removing {}...", package_name);
+        
+        uninstall_package(package_name, Some(self.scope))
+            .with_context(|| format!("Failed to remove {}", package_name))?;
+        
+        println!("Successfully removed {}", package_name);
+        Ok(())
+    }
+}
+
+fn main() -> Result<()> {
+    let pm = CustomPackageManager::new(PathBuf::from("/tmp/package-cache"));
+    
+    // Install a package
+    pm.install("nodejs", "20.0.0")?;
+    
+    // Later, remove it
+    pm.remove("nodejs")?;
+    
+    Ok(())
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/docs/zds/zoi/lib/api-reference">
+    Detailed documentation of all functions and types
+  </Card>
+  <Card title="docs.rs" icon="rust" href="https://docs.rs/zoi-rs/latest/zoi">
+    Complete library documentation
+  </Card>
+</CardGroup>
+
+## More Resources
+
+- [Zoi User Documentation](/docs/zds/zoi) - Learn about using Zoi as a CLI tool
+- [Package Building Guide](/docs/zds/zoi/packages/create) - How to create `.pkg.lua` files
+- [GitHub Repository](https://github.com/Zillowe/Zoi) - Source code and issue tracker

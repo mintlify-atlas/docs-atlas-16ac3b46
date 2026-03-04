@@ -1,0 +1,577 @@
+---
+title: Lua API Reference
+description: Complete reference of all Lua functions available in .pkg.lua package definitions
+---
+
+Zoi package definitions (`.pkg.lua` files) are powered by Lua and provide a rich API for building, packaging, and managing software. This page documents all available functions, globals, and utilities.
+
+## Package Lifecycle Functions
+
+These functions define the structure and behavior of your package.
+
+### `metadata(table)`
+
+Defines core package metadata. This is the only required function in a package definition.
+
+**Parameters:**
+- `table` (object): Package metadata fields
+
+**Metadata Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Package name (lowercase, no spaces) |
+| `version` | string | Yes | Package version (semver recommended) |
+| `description` | string | Yes | Short package description |
+| `repo` | string | Yes | Repository tier (e.g., "core", "main") |
+| `license` | string | Yes | SPDX license identifier |
+| `maintainer` | table | Yes | Maintainer info: `{name, email, website?}` |
+| `author` | table | No | Original author: `{name, email?, website?}` |
+| `website` | string | No | Project homepage URL |
+| `git` | string | No | Source repository URL |
+| `type` | string | No | Package type: "package", "app", "collection", "extension" |
+| `scope` | string | No | Install scope: "user" (default), "system", "project" |
+| `bins` | array | No | List of binary names provided |
+| `tags` | array | No | Searchable tags |
+| `sub_packages` | array | No | List of sub-package names |
+
+**Example:**
+```lua
+metadata {
+  name = "my-tool",
+  version = "1.2.3",
+  description = "A useful development tool",
+  repo = "main",
+  license = "MIT",
+  maintainer = {
+    name = "Jane Doe",
+    email = "jane@example.com",
+    website = "https://jane.dev"
+  },
+  website = "https://my-tool.dev",
+  git = "https://github.com/user/my-tool",
+  bins = { "my-tool" },
+  tags = { "cli", "developer-tools" }
+}
+```
+
+### `dependencies(table)`
+
+Defines package dependencies.
+
+**Parameters:**
+- `table` (object): Dependency configuration
+
+**Fields:**
+- `runtime` (object): Runtime dependencies
+  - `required` (array): Always installed
+  - `options` (array): Option groups (user selects one)
+  - `optional` (array): Optional dependencies
+- `build` (object): Build-time dependencies (same structure)
+
+**Example:**
+```lua
+dependencies {
+  runtime = {
+    required = { "libc", "libssl" },
+    optional = { "ffmpeg" },
+    options = {
+      {
+        name = "database",
+        desc = "Database backend",
+        depends = { "postgresql", "sqlite" }
+      }
+    }
+  },
+  build = {
+    required = { "gcc", "make" }
+  }
+}
+```
+
+### `prepare(table)`
+
+Executed during the build preparation phase. Use this to download, extract, and prepare source files.
+
+**Parameters:**
+- `table` (object): Configuration object (usually empty)
+
+**Example:**
+```lua
+prepare {}
+  UTILS.EXTRACT("https://github.com/user/project/archive/v" .. PKG.version .. ".tar.gz")
+end
+```
+
+### `package(table)`
+
+Executed during the packaging phase. Use `zcp()` to copy files to the package destination.
+
+**Parameters:**
+- `table` (object): Configuration object (usually empty)
+
+**Example:**
+```lua
+package {}
+  zcp("build/bin/my-tool", "bin/my-tool")
+  zcp("docs/", "share/doc/my-tool/")
+end
+```
+
+### `verify(table)`
+
+Optional. Runs verification checks before packaging.
+
+**Example:**
+```lua
+verify {}
+  if not verifyHash("download.tar.gz", "sha256-abc123...") then
+    error("Hash verification failed")
+  end
+end
+```
+
+### `test(table)`
+
+Optional. Runs package tests. Return `true` for success, `false` for failure.
+
+**Example:**
+```lua
+test {}
+  local result = cmd("./bin/my-tool --version")
+  return result:find(PKG.version) ~= nil
+end
+```
+
+### `uninstall(table)`
+
+Optional. Executed during package removal. Use `zrm()` for custom cleanup.
+
+**Example:**
+```lua
+uninstall {}
+  zrm("/etc/my-tool/config")
+end
+```
+
+### `updates(array)`
+
+Defines update notifications and changelogs.
+
+**Example:**
+```lua
+updates {
+  {
+    type = "update",
+    message = "Version 2.0 includes breaking API changes"
+  },
+  {
+    type = "vulnerability",
+    message = "CVE-2024-1234 fixed in this version"
+  }
+}
+```
+
+### `hooks(table)`
+
+Defines lifecycle hooks that run at specific points.
+
+**Available Hooks:**
+- `pre_install`, `post_install`
+- `pre_upgrade`, `post_upgrade`
+- `pre_remove`, `post_remove`
+
+**Example:**
+```lua
+hooks {
+  post_install = { "systemctl daemon-reload" },
+  pre_remove = { "systemctl stop my-service" }
+}
+```
+
+### `service(table)`
+
+Defines a system service for the package.
+
+**Fields:**
+- `run` (string): Command to execute
+- `run_at_load` (boolean): Start immediately on install
+- `working_dir` (string): Working directory
+- `env` (table): Environment variables
+- `log_path` (string): Log file path
+- `error_log_path` (string): Error log path
+
+**Example:**
+```lua
+service {
+  run = "/usr/bin/my-daemon --config /etc/my-daemon.conf",
+  run_at_load = true,
+  working_dir = "/var/lib/my-daemon",
+  log_path = "/var/log/my-daemon.log"
+}
+```
+
+## Global Variables
+
+### `PKG`
+
+Access to package metadata defined in `metadata()`.
+
+**Example:**
+```lua
+print(PKG.name)     -- "my-tool"
+print(PKG.version)  -- "1.2.3"
+print(PKG.lua)      -- Path to current .pkg.lua file
+```
+
+### `SYSTEM`
+
+Information about the build system.
+
+**Fields:**
+- `SYSTEM.OS`: Operating system ("linux", "darwin", "windows")
+- `SYSTEM.ARCH`: Architecture ("amd64", "arm64", etc.)
+- `SYSTEM.DISTRO`: Linux distribution name (if available)
+- `SYSTEM.MANAGER`: Native package manager ("apt", "pacman", etc.)
+
+**Example:**
+```lua
+if SYSTEM.OS == "linux" and SYSTEM.ARCH == "amd64" then
+  -- Linux-specific build
+end
+```
+
+### `ZOI`
+
+Zoi environment paths and configuration.
+
+**Fields:**
+- `ZOI.VERSION`: Override version
+- `ZOI.PATH.user`: User installation path (`~/.zoi`)
+- `ZOI.PATH.system`: System installation path
+- `ZOI.PKG.home`: User home directory
+- `ZOI.PKG.store`: Package store directory
+- `ZOI.PKG.root`: System root ("/")
+
+### `BUILD_DIR`
+
+Current build directory path (string).
+
+## File Operations
+
+### `zcp(source, destination)`
+
+Copy files to the package installation directory.
+
+**Parameters:**
+- `source` (string): Source path (relative to `BUILD_DIR`)
+- `destination` (string): Destination path (relative to install prefix)
+
+**Example:**
+```lua
+zcp("bin/my-tool", "bin/my-tool")
+zcp("lib/", "lib/my-tool/")
+```
+
+### `zrm(path)`
+
+Mark a file for removal during uninstall.
+
+**Parameters:**
+- `path` (string): Absolute path to remove
+
+**Example:**
+```lua
+zrm("/etc/my-tool/config")
+```
+
+## Command Execution
+
+### `cmd(command)`
+
+Execute a shell command in the build directory.
+
+**Parameters:**
+- `command` (string): Shell command to execute
+
+**Returns:** Command output (string), or empty string on failure
+
+**Example:**
+```lua
+local version = cmd("git describe --tags")
+cmd("make && make install")
+```
+
+## Utilities
+
+### `UTILS.FETCH`
+
+#### `UTILS.FETCH.url(url)`
+
+Fetch content from a URL.
+
+**Parameters:**
+- `url` (string): URL to fetch
+
+**Returns:** Response body (string)
+
+**Example:**
+```lua
+local html = UTILS.FETCH.url("https://api.github.com/repos/user/project/releases/latest")
+```
+
+#### `UTILS.FETCH.GITHUB.LATEST.tag(args)`
+
+Fetch the latest GitHub tag.
+
+**Parameters:**
+- `args` (table): `{repo = "user/project", domain?}` 
+
+**Returns:** Latest tag name (string)
+
+**Example:**
+```lua
+local latest = UTILS.FETCH.GITHUB.LATEST.tag({ repo = "torvalds/linux" })
+```
+
+#### `UTILS.FETCH.GITHUB.LATEST.release(args)`
+
+Fetch the latest GitHub release tag.
+
+**Parameters:**
+- `args` (table): `{repo = "user/project", domain?}`
+
+**Returns:** Latest release tag (string)
+
+#### `UTILS.FETCH.GITHUB.LATEST.commit(args)`
+
+Fetch the latest commit SHA.
+
+**Parameters:**
+- `args` (table): `{repo = "user/project", branch?, domain?}`
+
+**Returns:** Commit SHA (string)
+
+**Similar APIs available for:**
+- `UTILS.FETCH.GITLAB.*`
+- `UTILS.FETCH.GITEA.*`
+- `UTILS.FETCH.FORGEJO.*`
+
+### `UTILS.PARSE`
+
+#### `UTILS.PARSE.json(json_string)`
+
+Parse JSON string to Lua table.
+
+**Example:**
+```lua
+local data = UTILS.PARSE.json('{"version": "1.0.0"}')
+print(data.version)  -- "1.0.0"
+```
+
+#### `UTILS.PARSE.yaml(yaml_string)`
+
+Parse YAML string to Lua table.
+
+#### `UTILS.PARSE.toml(toml_string)`
+
+Parse TOML string to Lua table.
+
+#### `UTILS.PARSE.checksumFile(content, filename)`
+
+Parse a checksum file and extract hash for a specific file.
+
+**Parameters:**
+- `content` (string): Checksum file content
+- `filename` (string): File to find hash for
+
+**Returns:** Hash string or `nil`
+
+**Example:**
+```lua
+local checksums = UTILS.FETCH.url("https://example.com/SHA256SUMS")
+local hash = UTILS.PARSE.checksumFile(checksums, "my-file.tar.gz")
+```
+
+### `UTILS.EXTRACT(source, output_dir?)`
+
+Extract an archive (supports .zip, .tar.gz, .tar.xz, .tar.zst, .7z, .rar, .deb).
+
+**Parameters:**
+- `source` (string): Path or URL to archive
+- `output_dir` (string, optional): Extraction directory name
+
+**Example:**
+```lua
+UTILS.EXTRACT("https://example.com/source.tar.gz", "source")
+UTILS.EXTRACT("archive.zip")
+```
+
+### `UTILS.ARCHIVE.list(path)`
+
+List files in an archive.
+
+**Parameters:**
+- `path` (string): Path to archive file
+
+**Returns:** Array of file paths
+
+### `UTILS.FS`
+
+#### `UTILS.FS.exists(path)`
+
+Check if a file or directory exists.
+
+**Returns:** Boolean
+
+#### `UTILS.FS.copy(source, destination)`
+
+Copy a file or directory.
+
+**Returns:** Boolean (success)
+
+#### `UTILS.FS.move(source, destination)`
+
+Move/rename a file or directory.
+
+**Returns:** Boolean (success)
+
+#### `UTILS.FS.chmod(path, mode)`
+
+Change file permissions (Unix only).
+
+**Parameters:**
+- `path` (string): File path
+- `mode` (number): Unix permission mode (e.g., `0o755`)
+
+**Example:**
+```lua
+UTILS.FS.chmod("bin/my-tool", 0o755)
+```
+
+### `UTILS.FIND`
+
+#### `UTILS.FIND.file(directory, filename)`
+
+Recursively search for a file.
+
+**Parameters:**
+- `directory` (string): Directory to search (relative to `BUILD_DIR`)
+- `filename` (string): File name to find
+
+**Returns:** Relative path or `nil`
+
+### `UTILS.FILE(url, path)`
+
+Download a file from URL to a local path.
+
+**Parameters:**
+- `url` (string): Download URL
+- `path` (string): Local save path
+
+**Example:**
+```lua
+UTILS.FILE("https://example.com/binary", "bin/tool")
+```
+
+## Verification Functions
+
+### `verifyHash(file_path, hash_string)`
+
+Verify file hash.
+
+**Parameters:**
+- `file_path` (string): Path to file
+- `hash_string` (string): Hash in format `"algo-hash"` (e.g., `"sha256-abc123..."`)
+
+**Supported algorithms:** `md5`, `sha256`, `sha512`
+
+**Returns:** Boolean
+
+**Example:**
+```lua
+if not verifyHash("download.tar.gz", "sha256-" .. expected_hash) then
+  error("Verification failed")
+end
+```
+
+### `verifySignature(file_path, signature_path, key_source)`
+
+Verify PGP signature.
+
+**Parameters:**
+- `file_path` (string): File to verify
+- `signature_path` (string): Detached signature file (.asc, .sig)
+- `key_source` (string): URL, file path, or key name in Zoi keyring
+
+**Returns:** Boolean
+
+**Example:**
+```lua
+verifySignature(
+  "release.tar.gz",
+  "release.tar.gz.asc",
+  "https://example.com/pubkey.asc"
+)
+```
+
+### `addPgpKey(source, name)`
+
+Add a PGP key to the Zoi keyring.
+
+**Parameters:**
+- `source` (string): URL or file path to public key
+- `name` (string): Key name/identifier
+
+**Returns:** Boolean
+
+## Import/Include
+
+### `IMPORT(filename)`
+
+Import and parse a data file (JSON, YAML, TOML, or plain text).
+
+**Parameters:**
+- `filename` (string): File path (relative to package directory)
+
+**Returns:** Parsed data or file content string
+
+**Example:**
+```lua
+local config = IMPORT("config.json")
+local readme = IMPORT("README.md")
+```
+
+### `INCLUDE(filename)`
+
+Execute another Lua file in the current context.
+
+**Parameters:**
+- `filename` (string): Lua file path (relative to package directory)
+
+**Example:**
+```lua
+INCLUDE("helpers.lua")  -- Defines helper functions
+my_helper_function()     -- Now available
+```
+
+## Platform-Specific Code
+
+Use global variables to conditionally execute code:
+
+```lua
+if SYSTEM.OS == "linux" then
+  cmd("./configure --prefix=/usr")
+elseif SYSTEM.OS == "darwin" then
+  cmd("./configure --prefix=/usr/local")
+end
+
+if SYSTEM.ARCH == "arm64" then
+  cmd("make ARCH=aarch64")
+end
+```
+
+## See Also
+
+- [Lua API Cookbook](/docs/zds/zoi/lua-api-cookbook) - Practical examples and recipes
+- [Package Creation Guide](/docs/zds/zoi/essentials/packaging) - Step-by-step packaging tutorial

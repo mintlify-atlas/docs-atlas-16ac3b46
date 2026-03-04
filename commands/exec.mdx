@@ -1,0 +1,353 @@
+---
+title: zoi exec
+description: Execute a package command without installing it
+---
+
+## Syntax
+
+```bash
+zoi exec [OPTIONS] <SOURCE> [ARGS]...
+zoi x [OPTIONS] <SOURCE> [ARGS]...  # alias
+```
+
+## Description
+
+Downloads and executes a package command without permanently installing it. The package is cached for subsequent runs, making it ideal for:
+- Running one-off commands
+- Testing packages before installation
+- Using tools without cluttering your system
+- CI/CD pipelines where persistence isn't needed
+
+The command intelligently manages a cache to balance performance and disk usage.
+
+## Options
+
+<ParamField path="source" type="string" required>
+  Package identifier or source.
+  
+  **Formats:**
+  - `package-name` - Execute from default registry
+  - `@repo/package` - Execute from specific repository
+  - `#handle@repo/package` - Full specification
+  - `./package.pkg.tar.zst` - Execute from local archive
+</ParamField>
+
+<ParamField path="args" type="string[]">
+  Arguments to pass to the executed command. All arguments after the package source are forwarded to the package's main executable.
+</ParamField>
+
+<ParamField path="--upstream" type="boolean" default="false">
+  Force execution from a fresh download, bypassing the cache. Useful when:
+  - You want the absolute latest version
+  - Cache is suspected to be corrupted
+  - Testing updates
+  
+  Conflicts with `--cache` and `--local`.
+</ParamField>
+
+<ParamField path="--cache" type="boolean" default="false">
+  Force execution from the cache, failing if the package is not cached. Useful for:
+  - Offline execution
+  - Ensuring consistent versions
+  - CI/CD reproducibility
+  
+  Conflicts with `--upstream` and `--local`.
+</ParamField>
+
+<ParamField path="--local" type="boolean" default="false">
+  Execute from the local project installation (`.zoi/store/`). Fails if the package is not installed in the project.
+  
+  Conflicts with `--upstream` and `--cache`.
+</ParamField>
+
+<ParamField path="-r, --root" type="path" global>
+  Operate on a different root directory.
+</ParamField>
+
+<ParamField path="--offline" type="boolean" default="false" global>
+  Do not attempt to connect to the network (implies `--cache`).
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+```bash Execute packages
+# Run a Node.js script with npx-like behavior
+zoi exec nodejs -- node script.js
+
+# Execute a tool
+zoi exec ripgrep -- rg "search term" .
+
+# Using alias
+zoi x curl -- curl https://example.com
+```
+
+```bash Pass arguments
+# Pass arguments to the command
+zoi exec nodejs -- node -v
+
+# Multiple arguments
+zoi exec python -- python -c "print('hello')"
+
+# Arguments with flags
+zoi exec wget -- wget -O output.html https://example.com
+```
+
+```bash Force fresh download
+# Always get latest version
+zoi exec --upstream nodejs -- node script.js
+
+# Test a package update
+zoi x --upstream neovim -- nvim --version
+```
+
+```bash Use cached version
+# Require cached version (offline-safe)
+zoi exec --cache nodejs -- node script.js
+
+# Fail if not cached
+zoi x --cache obscure-tool -- tool --help
+# Error: Package 'obscure-tool' is not in cache
+```
+
+```bash Project execution
+# Execute from project installation
+zoi exec --local nodejs -- node build.js
+
+# Useful in npm scripts
+"scripts": {
+  "build": "zoi exec --local webpack -- webpack"
+}
+```
+</CodeGroup>
+
+## Execution Flow
+
+### Default Behavior (No Flags)
+
+1. **Check Cache**: Look for package in exec cache
+2. **Use Cache**: If found and valid, execute from cache
+3. **Download**: If not cached, download package
+4. **Cache**: Store in exec cache
+5. **Execute**: Run package command with arguments
+
+```bash
+$ zoi exec nodejs -- node -v
+
+# First run:
+Downloading nodejs...
+Caching for future use...
+v20.0.0
+
+# Subsequent runs:
+v20.0.0  # Instant execution from cache
+```
+
+### Upstream Mode (`--upstream`)
+
+1. **Download**: Always fetch fresh package
+2. **Update Cache**: Replace cached version
+3. **Execute**: Run new version
+
+```bash
+$ zoi exec --upstream nodejs -- node -v
+
+Downloading latest nodejs...
+Updating cache...
+v20.1.0  # New version
+```
+
+### Cache Mode (`--cache`)
+
+1. **Check Cache**: Look for package in cache
+2. **Execute**: If found, run immediately
+3. **Error**: If not cached, fail
+
+```bash
+$ zoi exec --cache nodejs -- node -v
+v20.0.0  # From cache
+
+$ zoi exec --cache new-package -- new-package
+Error: Package 'new-package' is not in cache
+```
+
+### Local Mode (`--local`)
+
+1. **Check Project**: Look in `.zoi/store/`
+2. **Execute**: If found, run from project installation
+3. **Error**: If not installed locally, fail
+
+```bash
+$ zoi exec --local nodejs -- node -v
+v20.0.0  # From .zoi/store/
+
+$ cd different-project
+$ zoi exec --local nodejs -- node -v
+Error: Package 'nodejs' is not installed in project
+```
+
+## Cache Management
+
+### Cache Location
+
+```
+~/.zoi/cache/exec/
+├── zoidberg/
+│   └── main/
+│       ├── nodejs/
+│       │   └── 20.0.0/
+│       ├── python/
+│       │   └── 3.12.0/
+│       └── ...
+```
+
+### Cache Cleanup
+
+Manually clean exec cache:
+
+```bash
+# Clean all cached exec packages
+zoi clean
+
+# Preview what will be cleaned
+zoi clean --dry-run
+```
+
+See [zoi clean](/docs/zds/zoi/commands/all-commands#clean) for details.
+
+## Exit Codes
+
+`zoi exec` forwards the exit code from the executed command:
+
+```bash
+$ zoi exec nodejs -- node script.js
+# script.js exits with code 0
+$ echo $?
+0
+
+$ zoi exec nodejs -- node failing-script.js
+# failing-script.js exits with code 1
+$ echo $?
+1
+```
+
+**Zoi-specific errors:**
+- `1`: Package not found
+- `1`: Package not in cache (with `--cache`)
+- `1`: Package not in project (with `--local`)
+- `1`: Download failed
+
+## Use Cases
+
+### One-off Commands
+
+```bash
+# Download a file without installing wget
+zoi exec wget -- wget https://example.com/file.zip
+
+# Use a tool temporarily
+zoi exec jq -- jq '.name' package.json
+```
+
+### Testing Before Installation
+
+```bash
+# Try a new editor
+zoi exec neovim -- nvim --version
+
+# If you like it, install permanently
+zoi install neovim
+```
+
+### CI/CD Pipelines
+
+```yaml
+# .gitlab-ci.yml
+build:
+  script:
+    - zoi exec --cache nodejs -- npm install
+    - zoi exec --cache nodejs -- npm run build
+```
+
+```yaml
+# GitHub Actions
+steps:
+  - name: Build
+    run: |
+      zoi exec nodejs -- npm install
+      zoi exec nodejs -- npm test
+```
+
+### Scripting
+
+```bash
+#!/bin/bash
+# build.sh
+
+set -e
+
+# Use specific versions without installing
+zoi exec nodejs -- npm install
+zoi exec nodejs -- npm run build
+zoi exec python -- python scripts/process.py
+```
+
+### NPM-style Execution
+
+Replace `npx` with Zoi:
+
+```bash
+# Old:
+npx create-react-app my-app
+
+# New:
+zoi exec create-react-app -- create-react-app my-app
+```
+
+## Performance
+
+### First Run
+- Downloads package (~seconds to minutes depending on size and network)
+- Extracts to cache
+- Executes command
+
+### Subsequent Runs
+- Instant execution from cache (milliseconds)
+- No network access required
+
+### Cache Hit Rate
+
+Optimize cache reuse:
+
+```bash
+# Pre-populate cache for offline use
+zoi exec nodejs -- node -v  # Downloads and caches
+
+# Later (offline):
+zoi exec nodejs -- node script.js  # Instant from cache
+```
+
+## Comparison with Other Commands
+
+| Feature | `zoi exec` | `zoi install` | `zoi shell -p` |
+|---------|------------|---------------|----------------|
+| **Installation** | Temporary cache | Permanent | Temporary cache |
+| **Persistence** | Cached until cleaned | Forever | Until cache clean |
+| **Use Case** | Run commands | Install packages | Test environment |
+| **Speed (cached)** | Instant | N/A | Fast |
+| **Speed (uncached)** | Download + execute | Download + install | Download + shell |
+
+## Tips
+
+1. **Cache Frequently Used Tools**: Run once to cache, then use offline
+2. **CI/CD**: Use `--cache` with pre-populated cache for reproducibility
+3. **Version Pinning**: Specify exact versions: `zoi exec nodejs@20.0.0 -- node -v`
+4. **Cleanup**: Periodically run `zoi clean` to free disk space
+5. **Offline Work**: Pre-cache packages before going offline
+
+## Related Commands
+
+- [zoi install](/docs/zds/zoi/commands/install) - Permanently install packages
+- [zoi shell](/docs/zds/zoi/commands/all-commands#shell) - Ephemeral shell environment
+- [zoi dev](/docs/zds/zoi/commands/dev) - Project development shell
+- [zoi clean](/docs/zds/zoi/commands/all-commands#clean) - Clean exec cache

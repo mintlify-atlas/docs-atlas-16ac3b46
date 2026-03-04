@@ -1,0 +1,75 @@
+---
+title: Introduction
+description: Use Zoi as a Rust library to integrate package management capabilities into your applications
+---
+
+# Library API Introduction
+
+Zoi provides a Rust library API that allows you to integrate its package management and environment setup capabilities directly into your Rust applications.
+
+## What is Zoi Library?
+
+The Zoi library (`zoi-rs`) exposes the core functionality of Zoi as a programmatic API. This enables you to:
+
+- **Build packages** from `.pkg.lua` files programmatically
+- **Install packages** from archive files into different scopes
+- **Uninstall packages** with scope control
+- **Manage package lifecycles** entirely from your Rust code
+
+## Key Features
+
+### Package Building
+Build distributable `.pkg.tar.zst` archives from package definitions with support for multiple platforms and optional package signing.
+
+### Package Installation
+Install packages from local archives with fine-grained control over:
+- Installation scope (User, System, or Project)
+- Registry association
+- Sub-package selection
+- Conflict resolution
+
+### Package Management
+Full control over package lifecycles including uninstallation with scope-aware operations.
+
+## Use Cases
+
+- **Custom Package Managers**: Build specialized package managers on top of Zoi's infrastructure
+- **CI/CD Pipelines**: Automate package building and deployment in continuous integration workflows
+- **Development Tools**: Create development tools that manage dependencies programmatically
+- **Testing Frameworks**: Test package installations and configurations automatically
+
+## Public API Overview
+
+The library exports three primary functions:
+
+- `build()` - Build packages from `.pkg.lua` files
+- `install_package()` - Install packages from archive files
+- `uninstall_package()` - Remove installed packages
+
+It also exports key types from the `pkg::types` module:
+
+- `Scope` - Enum for package installation scopes (User, System, Project)
+- Other package metadata types for advanced usage
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/docs/zds/zoi/lib/installation">
+    Add Zoi to your Cargo.toml and get started
+  </Card>
+  <Card title="API Reference" icon="book" href="/docs/zds/zoi/lib/api-reference">
+    Complete API documentation with all functions and types
+  </Card>
+  <Card title="Examples" icon="code" href="/docs/zds/zoi/lib/examples">
+    Real-world code examples for common use cases
+  </Card>
+  <Card title="docs.rs" icon="rust" href="https://docs.rs/zoi-rs/latest/zoi">
+    Full library documentation on docs.rs
+  </Card>
+</CardGroup>
+
+## Documentation Resources
+
+For user-facing documentation about using Zoi as a CLI tool, visit the [main Zoi documentation](/docs/zds/zoi).
+
+For complete library API documentation including all internal modules, see the [docs.rs documentation](https://docs.rs/zoi-rs/latest/zoi).

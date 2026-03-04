@@ -1,0 +1,595 @@
+---
+title: Packaging
+description: Create and distribute packages for Zoi
+---
+
+## Overview
+
+Zoi packages are defined using dynamic Lua scripts (`.pkg.lua` files) that describe how to fetch, build, and install software. This guide covers creating, testing, and publishing packages for Zoi.
+
+For comprehensive packaging guidelines, see the [PACKAGING.md](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/PACKAGING.md) file in the Zoi repository.
+
+## Package Definition Basics
+
+### Package Structure
+
+A minimal package definition:
+
+```lua
+-- hello.pkg.lua
+return {
+  name = "hello",
+  version = "2.12.1",
+  description = "GNU Hello - prints a friendly greeting",
+  homepage = "https://www.gnu.org/software/hello/",
+  license = "GPL-3.0",
+  
+  -- Package type
+  type = "Package",  -- Package, Collection, App, or Extension
+  
+  -- Download URLs for different platforms
+  url = {
+    ["linux-amd64"] = "https://example.com/hello-linux-amd64.tar.gz",
+    ["macos-arm64"] = "https://example.com/hello-macos-arm64.tar.gz",
+    ["windows-amd64"] = "https://example.com/hello-windows-amd64.zip",
+  },
+  
+  -- Checksums for verification
+  checksum = {
+    ["linux-amd64"] = "sha256:abc123...",
+    ["macos-arm64"] = "sha256:def456...",
+    ["windows-amd64"] = "sha256:ghi789...",
+  },
+  
+  -- Installation script
+  install = function(ctx)
+    ctx.copy("hello", "bin/")
+  end,
+}
+```
+
+### Package Types
+
+Zoi supports four package types:
+
+1. **Package** - Standard software package
+   ```lua
+   type = "Package"
+   ```
+
+2. **Collection** - Meta-package grouping other packages
+   ```lua
+   type = "Collection"
+   dependencies = {
+     runtime = {
+       "zoi:ripgrep",
+       "zoi:fd",
+       "zoi:bat",
+     }
+   }
+   ```
+
+3. **App** - Project template for `zoi create`
+   ```lua
+   type = "App"
+   ```
+
+4. **Extension** - Extends Zoi's functionality
+   ```lua
+   type = "Extension"
+   ```
+
+## Advanced Package Features
+
+### Dependencies
+
+Zoi supports rich dependency management across 40+ package managers:
+
+```lua
+dependencies = {
+  -- Runtime dependencies (required to run)
+  runtime = {
+    "zoi:another-package",
+    "apt:libssl-dev",          -- Debian/Ubuntu
+    "pacman:openssl",          -- Arch Linux
+    "brew:openssl@3",          -- macOS
+    "npm:typescript",          -- Node.js
+    "pip:requests",            -- Python
+    "cargo:serde",             -- Rust
+  },
+  
+  -- Build dependencies (only needed during installation)
+  build = {
+    "apt:build-essential",
+    "pacman:base-devel",
+    "cargo:cargo",
+  },
+  
+  -- Optional dependencies
+  optional = {
+    "zoi:plugin-extra",
+  },
+  
+  -- Selectable features
+  selectable = {
+    gui = {
+      "apt:libgtk-3-dev",
+    },
+  },
+}
+```
+
+See the [Dependencies Documentation](https://zillowe.qzz.io/docs/zds/zoi/dependencies) for the full list of supported managers.
+
+### Virtual Packages
+
+Use `provides` and `replaces` for package alternatives:
+
+```lua
+-- Package that provides a virtual package
+provides = { "text-editor" }
+
+-- Package that replaces another
+replaces = { "old-package-name" }
+```
+
+### Platform-Specific Configuration
+
+```lua
+url = {
+  ["linux-amd64"] = "https://...",
+  ["linux-arm64"] = "https://...",
+  ["macos-amd64"] = "https://...",
+  ["macos-arm64"] = "https://...",  
+  ["windows-amd64"] = "https://...",
+}
+
+checksum = {
+  ["linux-amd64"] = "sha256:...",
+  -- Must match each platform in url
+}
+
+-- Platform-specific install logic
+install = function(ctx)
+  if ctx.platform == "windows-amd64" then
+    ctx.copy("hello.exe", "bin/")
+  else
+    ctx.copy("hello", "bin/")
+  end
+end
+```
+
+### Build from Source
+
+For packages that need compilation:
+
+```lua
+return {
+  name = "myapp",
+  version = "1.0.0",
+  
+  -- Source tarball
+  url = {
+    ["source"] = "https://github.com/user/myapp/archive/v1.0.0.tar.gz",
+  },
+  
+  dependencies = {
+    build = {
+      "apt:build-essential",
+      "pacman:base-devel",
+      "cargo:cargo",
+    },
+  },
+  
+  -- Build and install
+  install = function(ctx)
+    ctx.exec("./configure --prefix=" .. ctx.prefix)
+    ctx.exec("make")
+    ctx.exec("make install")
+  end,
+}
+```
+
+### Installation Context API
+
+The `ctx` object provides utilities for installation:
+
+```lua
+install = function(ctx)
+  -- Copy files
+  ctx.copy("binary", "bin/")           -- Single file
+  ctx.copy("lib/*", "lib/")           -- Glob pattern
+  
+  -- Execute commands
+  ctx.exec("make install")
+  
+  -- Access context info
+  local platform = ctx.platform        -- "linux-amd64", "macos-arm64", etc.
+  local prefix = ctx.prefix            -- Installation prefix
+  local version = ctx.version          -- Package version
+  
+  -- Create directories
+  ctx.mkdir("share/doc/myapp")
+  
+  -- Write files
+  ctx.write("share/doc/myapp/README", "Documentation here")
+end
+```
+
+## Local Package Development
+
+Zoi provides dedicated commands for developing packages locally:
+
+### Creating a Package
+
+```sh
+# Create a new package definition
+mkdir my-package
+cd my-package
+cat > my-package.pkg.lua << 'EOF'
+return {
+  name = "my-package",
+  version = "1.0.0",
+  description = "My awesome package",
+  
+  url = {
+    ["linux-amd64"] = "https://example.com/my-package.tar.gz",
+  },
+  
+  checksum = {
+    ["linux-amd64"] = "sha256:...",
+  },
+  
+  install = function(ctx)
+    ctx.copy("my-binary", "bin/")
+  end,
+}
+EOF
+```
+
+### Building Locally
+
+```sh
+# Build the package
+zoi package build my-package.pkg.lua --type binary --platform linux-amd64
+
+# This creates a .zoi.tar.gz archive
+```
+
+### Testing Installation
+
+```sh
+# Install from local package definition
+zoi package install my-package.pkg.lua
+
+# Verify it works
+my-binary --version
+
+# Uninstall
+zoi uninstall my-package
+```
+
+### Iterative Development
+
+```sh
+# Edit package definition
+vim my-package.pkg.lua
+
+# Rebuild and reinstall
+zoi package build my-package.pkg.lua --type binary
+zoi package install my-package.pkg.lua --force
+
+# Test
+my-binary --version
+```
+
+## Checksums and Verification
+
+### Generating Checksums
+
+```sh
+# Linux/macOS
+sha256sum my-package.tar.gz
+
+# macOS alternative
+shasum -a 256 my-package.tar.gz
+
+# Windows
+Get-FileHash my-package.zip -Algorithm SHA256
+```
+
+Add checksums to your package:
+
+```lua
+checksum = {
+  ["linux-amd64"] = "sha256:abc123def456...",
+  ["macos-arm64"] = "sha256:789ghi012jkl...",
+}
+```
+
+### GPG Signatures
+
+For additional security, sign your packages:
+
+```sh
+# Sign the package archive
+gpg --detach-sign --armor my-package.tar.gz
+
+# This creates my-package.tar.gz.asc
+```
+
+Reference the signature in your package:
+
+```lua
+signature = {
+  ["linux-amd64"] = "https://example.com/my-package.tar.gz.asc",
+}
+```
+
+## Package Metadata
+
+### Complete Metadata Example
+
+```lua
+return {
+  -- Required fields
+  name = "myapp",
+  version = "1.2.3",
+  description = "A brief description of the package",
+  
+  -- Recommended fields
+  homepage = "https://myapp.example.com",
+  license = "MIT",
+  maintainer = "Your Name <your.email@example.com>",
+  
+  -- Repository information
+  repository = "https://github.com/user/myapp",
+  
+  -- Documentation
+  documentation = "https://docs.myapp.example.com",
+  
+  -- Tags for searchability
+  tags = { "cli", "development", "tools" },
+  
+  -- Package type
+  type = "Package",
+}
+```
+
+## Publishing Packages
+
+### To Zoidberg (Official Registry)
+
+1. **Fork Zoidberg:**
+   - GitLab: https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg
+   - GitHub: https://github.com/Zillowe/Zoidberg
+
+2. **Add your package:**
+   ```sh
+   cd Zoidberg
+   mkdir -p packages/my-package
+   cp my-package.pkg.lua packages/my-package/
+   ```
+
+3. **Test locally:**
+   ```sh
+   # Add your local fork as a repository
+   zoi repo add file:///path/to/Zoidberg
+   zoi sync
+   zoi install @myrepo/my-package
+   ```
+
+4. **Submit a merge request:**
+   - Push to your fork
+   - Open a merge request to Zoidberg
+   - Fill out the template with package details
+
+5. **Review process:**
+   - Maintainers review your package
+   - Initially added to **Community** tier
+   - Can be promoted to higher tiers based on quality and popularity
+
+### To a Custom Registry
+
+```sh
+# Create a Git repository
+mkdir my-registry
+cd my-registry
+git init
+
+# Add packages
+mkdir -p packages/my-package
+cp my-package.pkg.lua packages/my-package/
+
+# Commit and push
+git add .
+git commit -m "Add my-package"
+git remote add origin https://github.com/user/my-registry.git
+git push -u origin main
+
+# Users can now add your registry
+zoi repo add https://github.com/user/my-registry.git
+```
+
+## Package Quality Guidelines
+
+### Checklist for High-Quality Packages
+
+- [ ] Clear, descriptive package name
+- [ ] Accurate version number (semantic versioning)
+- [ ] Comprehensive description
+- [ ] Valid homepage and repository URLs
+- [ ] Correct license identifier (SPDX format)
+- [ ] SHA256 checksums for all platforms
+- [ ] GPG signatures (recommended)
+- [ ] All dependencies declared
+- [ ] Platform-specific variations handled
+- [ ] Tested on all target platforms
+- [ ] Installation script is idempotent
+- [ ] No hardcoded paths
+- [ ] Proper error handling
+
+### Repository Tier Requirements
+
+See [Zoidberg - Repository Tiers](/docs/zds/zoi/zoidberg#repository-tiers) for tier-specific requirements.
+
+**Community Tier** (entry level):
+- Valid package definition
+- Working installation
+- Basic metadata
+
+**Extra Tier:**
+- Checksums verified
+- Dependencies declared
+- Multi-platform support
+
+**Main Tier:**
+- Active maintenance
+- Community usage
+- High-quality metadata
+
+**Core Tier:**
+- Essential or very common package
+- Proven stability
+- Active maintenance commitment
+
+## Testing Packages
+
+### Manual Testing
+
+```sh
+# Test installation
+zoi package install my-package.pkg.lua
+
+# Verify binaries are in PATH
+which my-binary
+
+# Test functionality
+my-binary --version
+my-binary --help
+
+# Check file placement
+ls ~/.zoi/packages/my-package/
+
+# Test uninstallation
+zoi uninstall my-package
+
+# Verify cleanup
+which my-binary  # Should not be found
+```
+
+### Automated Testing
+
+Create a test script:
+
+```sh
+#!/bin/bash
+set -e
+
+# Install
+zoi package install my-package.pkg.lua
+
+# Test
+my-binary --version || exit 1
+
+# Cleanup
+zoi uninstall my-package
+
+# Verify removal
+if which my-binary; then
+  echo "Error: binary not removed"
+  exit 1
+fi
+
+echo "All tests passed!"
+```
+
+## Common Patterns
+
+### Single Binary Package
+
+```lua
+return {
+  name = "tool",
+  version = "1.0.0",
+  url = { ["linux-amd64"] = "https://..." },
+  checksum = { ["linux-amd64"] = "sha256:..." },
+  install = function(ctx)
+    ctx.copy("tool", "bin/")
+  end,
+}
+```
+
+### Archive with Multiple Files
+
+```lua
+install = function(ctx)
+  ctx.copy("bin/*", "bin/")
+  ctx.copy("lib/*", "lib/")
+  ctx.copy("share/*", "share/")
+end
+```
+
+### Compiled from Source
+
+```lua
+url = { ["source"] = "https://..." },
+dependencies = {
+  build = { "apt:build-essential" },
+},
+install = function(ctx)
+  ctx.exec("./configure --prefix=" .. ctx.prefix)
+  ctx.exec("make")
+  ctx.exec("make install")
+end
+```
+
+### Platform-Specific Binaries
+
+```lua
+install = function(ctx)
+  local binary = "tool"
+  if ctx.platform:match("windows") then
+    binary = "tool.exe"
+  end
+  ctx.copy(binary, "bin/")
+end
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Checksum Mismatch:**
+```sh
+# Regenerate checksum
+sha256sum package.tar.gz
+# Update in .pkg.lua
+```
+
+**Missing Dependencies:**
+```lua
+-- Declare all dependencies
+dependencies = {
+  runtime = {
+    "apt:required-lib",
+    "zoi:other-package",
+  },
+}
+```
+
+**Installation Fails:**
+```sh
+# Check logs
+zoi package install my-package.pkg.lua --verbose
+
+# Verify paths
+ls -la ~/.zoi/packages/my-package/
+```
+
+## Related Resources
+
+- [PACKAGING.md](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/PACKAGING.md) - Official packaging guidelines
+- [Zoidberg](/docs/zds/zoi/zoidberg) - Official package registry
+- [Contributing](/docs/zds/zoi/contributing) - Contribution guidelines
+- [Dependencies](https://zillowe.qzz.io/docs/zds/zoi/dependencies) - Supported package managers

@@ -1,0 +1,245 @@
+---
+title: zoi update
+description: Update packages to their latest versions
+---
+
+## Syntax
+
+```bash
+zoi update [OPTIONS] [PACKAGES]...
+zoi up [OPTIONS] [PACKAGES]...  # alias
+```
+
+## Description
+
+Updates one or more packages to their latest available versions. The command:
+- Checks for newer versions in configured registries
+- Resolves updated dependencies
+- Downloads and installs new versions
+- Preserves configuration files from previous versions
+- Maintains rollback capability to previous version
+- Runs pre-upgrade and post-upgrade hooks
+
+Updates are transactional - if any package fails to update, all changes are rolled back.
+
+## Options
+
+<ParamField path="packages" type="string[]">
+  Packages to update. If not specified, use `--all` to update everything.
+  
+  **Formats:**
+  - `package-name` - Update by name
+  - `@repo/package` - Update from specific repository
+  - `#handle@repo/package` - Full specification
+</ParamField>
+
+<ParamField path="--all" type="boolean" default="false">
+  Update all installed packages to their latest versions.
+  
+  Conflicts with specifying individual packages.
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean" default="false">
+  Show what would be updated without performing the actual update. Displays:
+  - Current versions
+  - Available versions
+  - Download sizes
+  - Net upgrade size (size difference)
+</ParamField>
+
+<ParamField path="-y, --yes" type="boolean" default="false" global>
+  Automatically answer yes to all prompts, including update confirmation.
+</ParamField>
+
+<ParamField path="-r, --root" type="path" global>
+  Operate on a different root directory.
+</ParamField>
+
+<ParamField path="--offline" type="boolean" default="false" global>
+  Do not attempt to connect to the network. Only use cached packages.
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+```bash Update single package
+# Update one package
+zoi update nodejs
+
+# Update from specific repository
+zoi update @main/python
+```
+
+```bash Update multiple packages
+zoi update nodejs npm yarn
+
+# Using alias
+zoi up nodejs npm
+```
+
+```bash Update all packages
+# Check for all updates
+zoi update --all
+
+# Update all without confirmation
+zoi update --all -y
+```
+
+```bash Dry run updates
+# Preview single package update
+zoi update --dry-run nodejs
+
+# Preview all updates
+zoi update --all --dry-run
+```
+
+```bash Non-interactive updates
+# Update without prompts
+zoi update -y nodejs
+
+# Update all automatically
+zoi update --all -y
+```
+</CodeGroup>
+
+## Update Process
+
+### Single Package Update
+
+1. **Version Check**: Queries registry for latest version
+2. **Pin Check**: Skips if package is pinned
+3. **Version Comparison**: Compares installed vs. available version
+4. **Size Calculation**: Shows download and net upgrade size
+5. **Confirmation**: Prompts user to proceed
+6. **Pre-upgrade Hooks**: Runs package pre-upgrade hooks
+7. **Dependency Resolution**: Resolves updated dependencies
+8. **Installation**: Installs new version
+9. **Config Restoration**: Restores backed-up configuration files
+10. **Cleanup**: Removes old versions (keeps 1-2 for rollback)
+11. **Post-upgrade Hooks**: Runs package post-upgrade hooks
+12. **Transaction Commit**: Records update in history
+
+### Update All Process
+
+```bash
+$ zoi update --all
+
+--- Checking for Upgrades ---
+[████████████████████] 42/42 (Checking packages...)
+
+- nodejs is up to date.
+- npm can be upgraded from 9.5.0 to 10.2.0
+- python can be upgraded from 3.11.0 to 3.12.0
+- gcc is pinned, skipping.
+
+Total Download Size: 125.4 MB
+Net Upgrade Size:    +15.2 MB
+
+Do you want to upgrade these packages? [y/N]: y
+
+--- Upgrading npm to 10.2.0 ---
+--- Upgrading python to 3.12.0 ---
+
+Success:
+```
+
+## Configuration File Handling
+
+Packages can mark files as configuration files using the `backup` field in their package definition. During updates:
+
+1. **Existing Config**: If a config file exists in the old version:
+   - It is restored to the new version
+   - If the new version has the same file, it's renamed to `.zoinew`
+
+```bash
+# Example during update:
+Configuration file '/etc/app/config.conf' exists in new version.
+Saving as .zoinew
+```
+
+2. **Preserved Files**:
+   - Old config: `/path/to/config.conf` (restored)
+   - New config: `/path/to/config.conf.zoinew` (for review)
+
+User can then manually merge changes if needed.
+
+## Pinned Packages
+
+Pinned packages are not updated:
+
+```bash
+$ zoi update gcc
+Package 'gcc' is pinned. Skipping update.
+
+# To update a pinned package, unpin it first:
+zoi unpin gcc
+zoi update gcc
+```
+
+See [zoi pin](/docs/zds/zoi/commands/all-commands#pin) and [zoi unpin](/docs/zds/zoi/commands/all-commands#unpin).
+
+## Rollback Capability
+
+By default, Zoi keeps the previous version for rollback:
+
+```bash
+# After updating nodejs from 18.0.0 to 20.0.0:
+~/.zoi/store/user/zoidberg/main/nodejs/
+  ├── 18.0.0/      # Previous version (for rollback)
+  ├── 20.0.0/      # Current version
+  └── latest -> 20.0.0/
+
+# Rollback if needed:
+zoi rollback nodejs
+```
+
+Number of versions kept is configurable in `~/.zoi/config.toml`:
+
+```toml
+rollback_enabled = true  # Keep 2 versions
+# Set to false to keep only 1 version (current)
+```
+
+## Exit Codes
+
+- `0`: Update completed successfully
+- `0`: Package already up to date
+- `1`: Update failed (changes rolled back)
+- `1`: Package not installed
+- `1`: Package is pinned
+- `1`: Network error (unless `--offline`)
+
+## Dry Run Output
+
+```bash
+$ zoi update --dry-run nodejs
+
+--- Updating package 'nodejs' ---
+Currently installed version: 18.0.0
+Available version: 20.0.0
+
+Total Download Size: 52.3 MB
+Net Upgrade Size:    +5.1 MB
+
+:: Dry-run: would upgrade nodejs from 18.0.0 to 20.0.0
+```
+
+## Parallel Updates
+
+When using `--all`, Zoi updates packages in parallel based on configuration:
+
+```toml
+# ~/.zoi/config.toml
+parallel_jobs = 3  # Number of concurrent updates
+```
+
+Dependencies are updated before packages that depend on them.
+
+## Related Commands
+
+- [zoi install](/docs/zds/zoi/commands/install) - Install packages
+- [zoi upgrade](/docs/zds/zoi/commands/all-commands#upgrade) - Upgrade Zoi itself
+- [zoi rollback](/docs/zds/zoi/commands/all-commands#rollback) - Rollback to previous version
+- [zoi pin](/docs/zds/zoi/commands/all-commands#pin) - Pin package to specific version
+- [zoi downgrade](/docs/zds/zoi/commands/all-commands#downgrade) - Downgrade to older version
+- [zoi sync](/docs/zds/zoi/commands/sync) - Update package database

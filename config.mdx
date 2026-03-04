@@ -1,0 +1,464 @@
+---
+title: Configuration
+description: Complete guide to Zoi's config.yaml file for customizing package management behavior
+---
+
+Zoi's behavior can be customized through `config.yaml` files. This hierarchical configuration system allows global, user-specific, and project-specific settings with policy enforcement capabilities.
+
+## Configuration Locations
+
+Zoi loads configuration from up to three locations, merging them with later files overriding earlier ones:
+
+### 1. System Configuration
+
+Global settings for all users. Only location where `policy` can enforce restrictions.
+
+**Paths:**
+- **Linux/macOS:** `/etc/zoi/config.yaml`
+- **Windows:** `C:\ProgramData\zoi\config.yaml`
+
+### 2. User Configuration
+
+Per-user settings. Most common configuration file.
+
+**Paths:**
+- **Linux/macOS:** `~/.zoi/pkgs/config.yaml`
+- **Windows:** `%USERPROFILE%\.zoi\pkgs\config.yaml`
+
+### 3. Project Configuration
+
+Project-specific settings for teams or specific projects.
+
+**Path:** `./.zoi/pkgs/config.yaml` (relative to current directory)
+
+## Configuration Options
+
+### `repos`
+
+List of active repository tiers to search for packages.
+
+**Type:** Array of strings
+
+**Example:**
+```yaml
+repos:
+  - core
+  - main
+  - community
+```
+
+### `default_registry`
+
+Primary package registry for syncing package databases.
+
+**Type:** Object
+
+**Fields:**
+- `handle` (string): Short registry identifier (auto-generated if empty)
+- `url` (string): Git repository URL
+- `authorities` (array, optional): Trusted PGP key names/fingerprints for Git signature verification
+
+**Example:**
+```yaml
+default_registry:
+  handle: zoidberg
+  url: https://github.com/Zillowe/Zoidberg.git
+  authorities:
+    - main-signing-key
+    - A1B2C3D4E5F67890
+```
+
+### `added_registries`
+
+Supplementary registries to sync alongside the default.
+
+**Type:** Array of registry objects
+
+**Example:**
+```yaml
+added_registries:
+  - handle: mycompany
+    url: https://git.company.com/zoi-packages.git
+  - handle: community
+    url: https://github.com/zoi-community/packages.git
+```
+
+### `git_repos`
+
+Raw Git repositories containing packages (cloned to `~/.zoi/pkgs/git/`).
+
+**Type:** Array of strings (Git URLs)
+
+**Example:**
+```yaml
+git_repos:
+  - https://github.com/myuser/custom-packages.git
+  - https://gitlab.com/team/internal-tools.git
+```
+
+**Usage:** Packages from Git repos are referenced as `@git/<repo-name>/<package>`
+
+### `telemetry_enabled`
+
+Enable anonymous usage telemetry (opt-in).
+
+**Type:** Boolean  
+**Default:** `false`
+
+**Example:**
+```yaml
+telemetry_enabled: true
+```
+
+See [Telemetry](/docs/zds/zoi/telemetry) for details on what data is collected.
+
+### `audit_log_enabled`
+
+Log all package operations to `~/.zoi/audit.json`.
+
+**Type:** Boolean  
+**Default:** `false`
+
+**Example:**
+```yaml
+audit_log_enabled: true
+```
+
+### `rollback_enabled`
+
+Keep previous package versions for rollback capability.
+
+**Type:** Boolean  
+**Default:** `true`
+
+**Example:**
+```yaml
+rollback_enabled: false  # Save disk space, disable rollbacks
+```
+
+### `parallel_jobs`
+
+Number of parallel jobs for package installation.
+
+**Type:** Integer  
+**Default:** `3`
+
+**Example:**
+```yaml
+parallel_jobs: 8  # For powerful machines
+```
+
+### `protect_db`
+
+Make package database read-only after sync (security feature).
+
+**Type:** Boolean  
+**Default:** `false`
+
+**Example:**
+```yaml
+protect_db: true
+```
+
+### `max_resolution_depth`
+
+Maximum recursion depth for package resolution (prevents infinite loops in `alt` chains).
+
+**Type:** Integer  
+**Default:** `7`  
+**Special:** `0` = unlimited
+
+**Example:**
+```yaml
+max_resolution_depth: 10
+```
+
+### `offline_mode`
+
+Disable all network operations (use cached data only).
+
+**Type:** Boolean  
+**Default:** `false`
+
+**Example:**
+```yaml
+offline_mode: true
+```
+
+### `pkg_dirs`
+
+Additional directories to search for `.pkg.tar.zst` archives.
+
+**Type:** Array of strings (paths)
+
+**Example:**
+```yaml
+pkg_dirs:
+  - /mnt/cache/packages
+  - /opt/archives
+```
+
+## Policy Enforcement
+
+The `policy` object (system config only) allows administrators to lock down settings.
+
+### Policy Fields
+
+All policy fields are boolean and default to `false`. When `true`, the corresponding setting cannot be overridden by user/project configs.
+
+**Example:**
+```yaml
+policy:
+  repos_unoverridable: true
+  default_registry_unoverridable: true
+  telemetry_enabled_unoverridable: true
+  signature_enforcement_unoverridable: true
+```
+
+**Available Policy Flags:**
+
+| Flag | Locks |
+|------|-------|
+| `repos_unoverridable` | `repos` list |
+| `default_registry_unoverridable` | `default_registry` |
+| `added_registries_unoverridable` | `added_registries` |
+| `git_repos_unoverridable` | `git_repos` |
+| `telemetry_enabled_unoverridable` | `telemetry_enabled` |
+| `audit_log_enabled_unoverridable` | `audit_log_enabled` |
+| `rollback_enabled_unoverridable` | `rollback_enabled` |
+| `protect_db_unoverridable` | `protect_db` |
+| `max_resolution_depth_unoverridable` | `max_resolution_depth` |
+| `offline_mode_unoverridable` | `offline_mode` |
+| `pkg_dirs_unoverridable` | `pkg_dirs` |
+| `allow_deny_lists_unoverridable` | Allow/deny lists |
+| `signature_enforcement_unoverridable` | Signature verification |
+
+### Allow/Deny Lists
+
+Control which packages, repositories, and licenses are permitted.
+
+**Example:**
+```yaml
+policy:
+  allowed_licenses:
+    - MIT
+    - Apache-2.0
+    - BSD-3-Clause
+  denied_licenses:
+    - AGPL-3.0-only
+  allowed_packages:
+    - nginx
+    - postgresql
+  denied_packages:
+    - insecure-tool
+  allowed_repos:
+    - core
+    - main
+  denied_repos:
+    - experimental
+```
+
+### Signature Enforcement
+
+Require PGP signatures on all pre-built packages.
+
+**Example:**
+```yaml
+policy:
+  signature_enforcement:
+    enable: true
+    trusted_keys:
+      - build-server-key
+      - A1B2C3D4E5F67890  # PGP fingerprint
+```
+
+**Behavior:**
+- When enabled, only packages signed by `trusted_keys` can be installed
+- Falls back to building from source if no signed archive is available
+- Keys must exist in Zoi's PGP keyring (`zoi pgp list`)
+
+## Complete Configuration Examples
+
+### Enterprise Locked-Down Configuration
+
+**/etc/zoi/config.yaml (system):**
+```yaml
+# Corporate registry
+default_registry:
+  handle: acme-corp
+  url: https://git.acme.com/zoi/registry.git
+  authorities:
+    - acme-build-server
+
+# Only core and internal repositories
+repos:
+  - core
+  - acme-internal
+
+# Security policies
+policy:
+  # Lock registry and repositories
+  default_registry_unoverridable: true
+  repos_unoverridable: true
+  added_registries_unoverridable: true
+  git_repos_unoverridable: true
+  
+  # Enforce signature verification
+  signature_enforcement_unoverridable: true
+  signature_enforcement:
+    enable: true
+    trusted_keys:
+      - acme-build-server
+      - 1234567890ABCDEF
+  
+  # License restrictions
+  allow_deny_lists_unoverridable: true
+  allowed_licenses:
+    - MIT
+    - Apache-2.0
+    - BSD-2-Clause
+    - BSD-3-Clause
+  denied_licenses:
+    - AGPL-3.0-only
+    - GPL-3.0-only
+  
+  # Require audit logging
+  audit_log_enabled_unoverridable: true
+
+# Force audit logging
+audit_log_enabled: true
+
+# Protect database from tampering
+protect_db: true
+```
+
+### Developer User Configuration
+
+**~/.zoi/pkgs/config.yaml (user):**
+```yaml
+# Additional community repos
+repos:
+  - core
+  - main
+  - community
+
+# Add experimental registry
+added_registries:
+  - handle: experimental
+    url: https://github.com/zoi-community/experimental.git
+
+# Add personal package repository
+git_repos:
+  - https://github.com/myuser/my-packages.git
+
+# Optimize for fast machine
+parallel_jobs: 12
+
+# Disable telemetry
+telemetry_enabled: false
+
+# Local package cache
+pkg_dirs:
+  - /mnt/ssd/package-cache
+```
+
+### Team Project Configuration
+
+**./.zoi/pkgs/config.yaml (project):**
+```yaml
+# Team registry
+added_registries:
+  - handle: team-packages
+    url: https://github.com/ourteam/zoi-packages.git
+
+# Use team repositories
+repos:
+  - core
+  - main
+  - team-internal
+
+# Enable audit logging for compliance
+audit_log_enabled: true
+```
+
+## Managing Configuration
+
+### View Current Configuration
+
+```bash
+zoi config show
+```
+
+### Edit User Configuration
+
+```bash
+# Open in default editor
+$EDITOR ~/.zoi/pkgs/config.yaml
+```
+
+### Add Repositories Programmatically
+
+```bash
+# Add repository interactively
+zoi repo add
+
+# Or edit config directly
+zoi config edit
+```
+
+### Add Registries
+
+```bash
+# Set default registry
+zoi registry set https://git.example.com/registry.git
+
+# Add supplementary registry
+zoi registry add https://github.com/community/packages.git
+```
+
+### Add Git Repositories
+
+```bash
+zoi repo git-clone https://github.com/user/packages.git
+```
+
+## Configuration Precedence
+
+When merging configurations:
+
+1. **System config** is loaded first
+2. **User config** overrides system (unless policy prevents it)
+3. **Project config** overrides user (unless policy prevents it)
+
+**Example:**
+
+- System sets `repos: [core]` with `repos_unoverridable: true`
+- User config tries to set `repos: [core, main]`
+- **Result:** Only `[core]` is active (system policy enforced)
+
+## Environment-Specific Configuration
+
+Use environment variables to override config:
+
+```bash
+# Force offline mode
+ZOI_OFFLINE=1 zoi install package
+
+# Use alternate registry
+ZOI_REGISTRY_URL=https://mirror.example.com/registry.git zoi sync
+```
+
+## Validation
+
+Zoi validates configuration on load. Common errors:
+
+- **Invalid YAML syntax**: Fix YAML formatting
+- **Unknown fields**: Remove unsupported keys
+- **Type mismatches**: Ensure correct types (string vs array)
+- **Invalid URLs**: Check Git repository URLs
+
+## See Also
+
+- [Extensions](/docs/zds/zoi/extensions) - Programmatically modify configuration
+- [Telemetry](/docs/zds/zoi/telemetry) - What telemetry collects
+- [PGP Management](/docs/zds/zoi/essentials/pgp) - Managing PGP keys for signature verification

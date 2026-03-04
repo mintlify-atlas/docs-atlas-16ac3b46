@@ -1,0 +1,375 @@
+---
+title: API Reference
+description: Complete reference for all public functions and types in the Zoi library
+---
+
+# API Reference
+
+Complete documentation of all public exports from the Zoi library.
+
+## Functions
+
+### build()
+
+Builds a Zoi package from a local `.pkg.lua` file.
+
+```rust
+pub fn build(
+    package_file: &Path,
+    build_type: &str,
+    platforms: &[String],
+    sign_key: Option<String>,
+) -> Result<()>
+```
+
+This function reads a package definition, runs the build process, and creates a distributable `.pkg.tar.zst` archive.
+
+<ParamField path="package_file" type="&Path" required>
+  Path to the `.pkg.lua` file that defines the package
+</ParamField>
+
+<ParamField path="build_type" type="&str" required>
+  The type of package to build. Common values:
+  - `"source"` - Build from source code
+  - `"pre-compiled"` - Package pre-compiled binaries
+</ParamField>
+
+<ParamField path="platforms" type="&[String]" required>
+  Slice of platform strings to build for. Examples:
+  - `["linux-amd64"]`
+  - `["linux-arm64"]`
+  - `["darwin-amd64", "darwin-arm64"]`
+  - `["windows-amd64"]`
+</ParamField>
+
+<ParamField path="sign_key" type="Option<String>">
+  Optional PGP key name or fingerprint to sign the package. If provided, the built package will be cryptographically signed.
+</ParamField>
+
+<ResponseField name="Return" type="Result<()>">
+  Returns `Ok(())` on success. The built package archive is created in the current directory.
+</ResponseField>
+
+**Error Conditions:**
+
+- Package file cannot be read or doesn't exist
+- Build process fails (compilation errors, missing dependencies, etc.)
+- Specified build type is not supported by the package
+- Invalid platform specification
+- PGP signing fails (if `sign_key` is provided)
+
+**Example:**
+
+```rust
+use zoi::build;
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let package_file = Path::new("my-package.pkg.lua");
+    let platforms = vec!["linux-amd64".to_string()];
+    build(package_file, "source", &platforms, None)?;
+    println!("Package built successfully!");
+    Ok(())
+}
+```
+
+---
+
+### install_package()
+
+Installs a Zoi package from a local package archive.
+
+```rust
+pub fn install_package(
+    package_file: &Path,
+    scope_override: Option<Scope>,
+    registry_handle: &str,
+    yes: bool,
+    sub_packages: Option<Vec<String>>,
+) -> Result<Vec<String>>
+```
+
+This function unpacks a `.pkg.tar.zst` archive and installs its contents into the appropriate Zoi store, linking any binaries.
+
+<ParamField path="package_file" type="&Path" required>
+  Path to the local package archive file (`.pkg.tar.zst`)
+</ParamField>
+
+<ParamField path="scope_override" type="Option<Scope>">
+  Optionally override the installation scope. If `None`, uses the package's default scope.
+  
+  Values:
+  - `Some(Scope::User)` - Install in user scope (~/.zoi)
+  - `Some(Scope::System)` - Install system-wide (requires permissions)
+  - `Some(Scope::Project)` - Install in current project
+  - `None` - Use package default
+</ParamField>
+
+<ParamField path="registry_handle" type="&str" required>
+  The handle of the registry this package belongs to. Common values:
+  - `"zoidberg"` - Official Zoi registry
+  - `"local"` - Local package (not from a registry)
+  - Custom registry handles
+</ParamField>
+
+<ParamField path="yes" type="bool" required>
+  Automatically answer "yes" to any confirmation prompts.
+  - `true` - Non-interactive mode, auto-confirm all prompts
+  - `false` - Interactive mode, prompt for confirmations (file conflicts, etc.)
+</ParamField>
+
+<ParamField path="sub_packages" type="Option<Vec<String>>">
+  For split packages, optionally specify which sub-packages to install. If `None`, installs all default sub-packages.
+  
+  Example: `Some(vec!["dev".to_string(), "docs".to_string()])`
+</ParamField>
+
+<ResponseField name="Return" type="Result<Vec<String>>">
+  Returns a `Vec<String>` containing all the file paths that were installed. Useful for tracking installed files or cleanup operations.
+</ResponseField>
+
+**Error Conditions:**
+
+- Archive file doesn't exist or is corrupted
+- Invalid package format
+- File system permission issues
+- Disk space insufficient
+- Conflicting files already exist (in interactive mode)
+- Package dependencies not met
+
+**Example:**
+
+```rust
+use zoi::{install_package, Scope};
+use std::path::Path;
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    let archive_path = Path::new("my-package-1.0.0-linux-amd64.pkg.tar.zst");
+    let installed_files = install_package(
+        archive_path,
+        Some(Scope::User),
+        "local",
+        true,
+        None
+    )?;
+    println!("Installed {} files", installed_files.len());
+    Ok(())
+}
+```
+
+---
+
+### uninstall_package()
+
+Uninstalls a Zoi package.
+
+```rust
+pub fn uninstall_package(
+    package_name: &str,
+    scope_override: Option<Scope>,
+) -> Result<()>
+```
+
+This function removes a package's files from the Zoi store and unlinks its binaries.
+
+<ParamField path="package_name" type="&str" required>
+  The name of the package to uninstall (e.g., `"nodejs"`, `"python"`)
+</ParamField>
+
+<ParamField path="scope_override" type="Option<Scope>">
+  Optionally specify the scope to uninstall from.
+  
+  - `Some(Scope::User)` - Uninstall from user scope only
+  - `Some(Scope::System)` - Uninstall from system scope only
+  - `Some(Scope::Project)` - Uninstall from project scope only
+  - `None` - Search for the package across all scopes and uninstall
+</ParamField>
+
+<ResponseField name="Return" type="Result<()>">
+  Returns `Ok(())` on successful uninstallation.
+</ResponseField>
+
+**Error Conditions:**
+
+- Package is not found in the specified scope(s)
+- File system permission issues
+- Package is required by other packages (dependency conflict)
+- Uninstallation process fails
+
+**Example:**
+
+```rust
+use zoi::{uninstall_package, Scope};
+use anyhow::Result;
+
+fn main() -> Result<()> {
+    uninstall_package("my-package", Some(Scope::User))?;
+    println!("Package uninstalled successfully!");
+    Ok(())
+}
+```
+
+---
+
+## Types
+
+### Scope
+
+Defines the installation scope for packages.
+
+```rust
+pub enum Scope {
+    User,
+    System,
+    Project,
+}
+```
+
+The `Scope` enum determines where packages are installed and how they're accessed:
+
+<ParamField path="User" type="Scope::User">
+  **User Scope** - Packages installed in the user's home directory (`~/.zoi`)
+  
+  - No elevated permissions required
+  - Available only to the current user
+  - Default scope for most operations
+  - Typical path: `~/.zoi/store/`
+</ParamField>
+
+<ParamField path="System" type="Scope::System">
+  **System Scope** - Packages installed system-wide
+  
+  - Requires elevated permissions (sudo/admin)
+  - Available to all users on the system
+  - Typical path: `/usr/local/zoi/store/` (Linux/macOS)
+  - Use for system-wide tools and services
+</ParamField>
+
+<ParamField path="Project" type="Scope::Project">
+  **Project Scope** - Packages installed in the current project
+  
+  - Isolated to a specific project directory
+  - Managed via project's `zoi.yaml`
+  - Multiple projects can have different versions
+  - Typical path: `./.zoi/store/` in project root
+</ParamField>
+
+**Traits:**
+- Implements `Debug`, `Serialize`, `Deserialize`, `PartialEq`, `Eq`, `Clone`, `Copy`
+- Derives `Default` with `Scope::User` as the default value
+
+**Example:**
+
+```rust
+use zoi::Scope;
+
+fn main() {
+    let default_scope = Scope::default();  // Scope::User
+    let user_scope = Scope::User;
+    let system_scope = Scope::System;
+    let project_scope = Scope::Project;
+    
+    assert_eq!(default_scope, user_scope);
+}
+```
+
+---
+
+### types Module
+
+The `types` module contains additional package metadata types for advanced usage.
+
+```rust
+pub use pkg::types::{self, Scope};
+```
+
+While `Scope` is re-exported at the crate root, the full `types` module provides access to:
+
+- `PackageType` - Enum for package types (Package, Collection, App, Extension)
+- `InstallReason` - Why a package was installed (Direct vs Dependency)
+- `Service` - Service configuration for packages
+- `Package` - Complete package metadata structure
+- `Dependencies` - Dependency specifications
+- And many other internal types
+
+<Note>
+  Most library users only need the main functions and `Scope` type. The `types` module is primarily for advanced use cases like building custom package managers or tools.
+</Note>
+
+**Example:**
+
+```rust
+use zoi::types::{Scope, PackageType};
+
+fn main() {
+    let scope = Scope::User;
+    let pkg_type = PackageType::default();  // PackageType::Package
+}
+```
+
+---
+
+## Error Handling
+
+All public functions return `anyhow::Result<T>`, providing rich error context.
+
+### Best Practices
+
+**Use the `?` operator:**
+
+```rust
+use zoi::install_package;
+use anyhow::Result;
+
+fn my_function() -> Result<()> {
+    install_package(/* ... */)?;
+    Ok(())
+}
+```
+
+**Add context to errors:**
+
+```rust
+use anyhow::{Context, Result};
+use zoi::build;
+use std::path::Path;
+
+fn build_my_package() -> Result<()> {
+    let pkg_file = Path::new("package.pkg.lua");
+    build(pkg_file, "source", &["linux-amd64".to_string()], None)
+        .context("Failed to build package")?;
+    Ok(())
+}
+```
+
+**Handle specific errors:**
+
+```rust
+use anyhow::Result;
+use zoi::uninstall_package;
+
+fn try_uninstall(name: &str) -> Result<()> {
+    match uninstall_package(name, None) {
+        Ok(_) => println!("Package removed"),
+        Err(e) => eprintln!("Failed to uninstall: {}", e),
+    }
+    Ok(())
+}
+```
+
+---
+
+## Additional Resources
+
+<CardGroup cols={2}>
+  <Card title="Examples" icon="code" href="/docs/zds/zoi/lib/examples">
+    See practical examples of using the API
+  </Card>
+  <Card title="docs.rs" icon="rust" href="https://docs.rs/zoi-rs/latest/zoi">
+    Complete documentation on docs.rs
+  </Card>
+</CardGroup>
+
+For detailed information about internal modules and advanced usage, see the [full documentation on docs.rs](https://docs.rs/zoi-rs/latest/zoi).

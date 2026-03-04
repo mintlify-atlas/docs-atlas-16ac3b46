@@ -1,0 +1,487 @@
+---
+title: "Transaction Hooks"
+description: "Run scripts during package installation, upgrade, and removal"
+---
+
+Transaction hooks allow packages to execute custom scripts at specific points during installation, upgrade, and removal operations. Zoi supports both **package-level hooks** (defined in `.pkg.lua`) and **global hooks** (triggered by filesystem changes).
+
+## Package-Level Hooks
+
+Package-level hooks are defined in the `.pkg.lua` file and run for specific operations on that package.
+
+### Defining Hooks
+
+Use the `hooks` block in your package definition:
+
+```lua example.pkg.lua
+metadata {
+  name = "example",
+  -- ...
+}
+
+hooks {
+  pre_install = {
+    "echo 'Preparing to install example'",
+    "mkdir -p ~/.example"
+  },
+  post_install = {
+    "echo 'Example installed successfully'",
+    "example --setup"
+  },
+  pre_upgrade = {
+    "echo 'Backing up configuration'",
+    "cp ~/.example/config ~/.example/config.bak"
+  },
+  post_upgrade = {
+    "echo 'Upgrade complete, restoring config'",
+    "example --migrate"
+  },
+  pre_remove = {
+    "echo 'Cleaning up example data'"
+  },
+  post_remove = {
+    "rm -rf ~/.example"
+  }
+}
+```
+
+### Hook Types
+
+- **`pre_install`**: Runs before package installation
+- **`post_install`**: Runs after package installation
+- **`pre_upgrade`**: Runs before package upgrade
+- **`post_upgrade`**: Runs after package upgrade
+- **`pre_remove`**: Runs before package removal
+- **`post_remove`**: Runs after package removal
+
+### Platform-Specific Hooks
+
+Define different hooks for each platform:
+
+```lua
+hooks {
+  post_install = {
+    ["linux-amd64"] = {
+      "systemctl --user enable example.service"
+    },
+    ["darwin-amd64"] = {
+      "launchctl load ~/Library/LaunchAgents/com.example.plist"
+    },
+    ["windows-amd64"] = {
+      "sc.exe create Example binPath=C:\\example\\bin\\example.exe"
+    },
+    default = {
+      "echo 'Example installed'"
+    }
+  }
+}
+```
+
+Zoi executes the platform-specific commands if they match the current platform, or falls back to `default`.
+
+### Hook Execution
+
+Commands run in a shell environment:
+
+- **Linux/macOS**: `bash -c "command"`
+- **Windows**: `pwsh -Command "command"`
+
+If a hook command fails (non-zero exit code), the entire operation aborts:
+
+```
+✗ Hook command failed: example --setup
+Installation aborted.
+```
+
+<Warning>
+  Hook failures abort the installation. Ensure hook commands are idempotent and handle errors gracefully.
+</Warning>
+
+### Example: Service Setup
+
+Automatically configure a systemd service on installation:
+
+```lua myservice.pkg.lua
+metadata {
+  name = "myservice",
+  description = "A background service",
+  -- ...
+}
+
+hooks {
+  post_install = {
+    ["linux-amd64"] = {
+      "systemctl --user daemon-reload",
+      "systemctl --user enable myservice.service",
+      "systemctl --user start myservice.service"
+    },
+    default = {
+      "echo 'Service installed. Start manually with: myservice start'"
+    }
+  },
+  pre_remove = {
+    ["linux-amd64"] = {
+      "systemctl --user stop myservice.service || true",
+      "systemctl --user disable myservice.service || true"
+    }
+  },
+  post_remove = {
+    ["linux-amd64"] = {
+      "systemctl --user daemon-reload"
+    }
+  }
+}
+
+function package(args)
+  ZCP("bin/myservice", "${usrroot}/bin/")
+  ZCP("myservice.service", "${usrhome}/.config/systemd/user/")
+end
+```
+
+**Installation output:**
+
+```bash
+$ zoi install @custom/myservice
+✓ Downloaded myservice@1.0.0
+✓ Installed to ~/.zoi/pkgs/store/myservice-1.0.0
+> systemctl --user daemon-reload
+> systemctl --user enable myservice.service
+> systemctl --user start myservice.service
+✓ myservice installed successfully
+```
+
+## Global Hooks
+
+Global hooks are triggered by filesystem changes across all package transactions. They allow system-wide actions like updating font caches, desktop databases, or dynamic linker caches.
+
+### Built-In Global Hooks
+
+Zoi ships with several built-in global hooks:
+
+#### Update Desktop Database (Linux)
+
+```yaml desktop-database.hook.yaml
+name: update-desktop-database
+description: Updates the desktop entry database.
+platforms: ["linux"]
+trigger:
+  paths:
+    - "usr/share/applications/*.desktop"
+  operation: ["install", "upgrade", "remove"]
+action:
+  when: PostTransaction
+  exec: update-desktop-database -q
+```
+
+Runs after any package installs a `.desktop` file.
+
+#### Update Font Cache (Linux)
+
+```yaml font-cache.hook.yaml
+name: update-font-cache
+description: Rebuilds system font cache when fonts are installed or removed.
+platforms: ["linux"]
+trigger:
+  paths:
+    - "usr/share/fonts/**"
+    - "usr/local/share/fonts/**"
+  operation: ["install", "upgrade", "remove"]
+action:
+  when: PostTransaction
+  exec: fc-cache -fv
+```
+
+Runs after fonts are installed, upgraded, or removed.
+
+#### Update Dynamic Linker Cache (Linux)
+
+```yaml ldconfig.hook.yaml
+name: ldconfig
+description: Updates the dynamic linker run-time bindings.
+platforms: ["linux"]
+trigger:
+  paths:
+    - "usr/lib/*.so*"
+    - "lib/*.so*"
+  operation: ["install", "upgrade", "remove"]
+action:
+  when: PostTransaction
+  exec: ldconfig
+```
+
+Runs after shared libraries are installed.
+
+### How Global Hooks Work
+
+1. **Transaction tracking**: Zoi records all file changes during a transaction
+2. **Hook matching**: After the transaction, Zoi checks which files match hook path patterns
+3. **Hook execution**: Matching hooks run in order (pre-transaction or post-transaction)
+
+### Creating Custom Global Hooks
+
+Define custom hooks in YAML format and place them in:
+
+- **User scope:** `~/.zoi/hooks/`
+- **System scope:** `/etc/zoi/hooks/` (Linux/macOS) or `C:\ProgramData\zoi\hooks\` (Windows)
+
+#### Hook File Format
+
+```yaml custom-hook.hook.yaml
+name: custom-hook
+description: Description of what this hook does
+platforms: ["linux", "darwin"]  # Optional: platforms where hook applies
+trigger:
+  paths:
+    - "usr/share/myapp/**"       # Glob patterns for file paths
+    - "etc/myapp.conf"
+  operation:                      # Optional: operations that trigger hook
+    - install
+    - upgrade
+    - remove
+action:
+  when: PostTransaction           # PreTransaction or PostTransaction
+  exec: myapp --refresh-cache     # Shell command to execute
+```
+
+**Fields:**
+
+- `name`: Unique hook identifier
+- `description`: Human-readable description
+- `platforms`: (Optional) List of platforms where hook applies
+- `trigger.paths`: Glob patterns matching file paths
+- `trigger.operation`: (Optional) Operations that trigger the hook (`install`, `upgrade`, `remove`)
+- `action.when`: `PreTransaction` or `PostTransaction`
+- `action.exec`: Shell command to run
+
+#### Example: Clear Application Cache
+
+```yaml clear-cache.hook.yaml
+name: clear-myapp-cache
+description: Clears myapp cache when configuration changes
+platforms: ["linux", "darwin"]
+trigger:
+  paths:
+    - "etc/myapp/**"
+  operation: ["install", "upgrade"]
+action:
+  when: PostTransaction
+  exec: rm -rf ~/.cache/myapp
+```
+
+Place in `~/.zoi/hooks/clear-cache.hook.yaml`.
+
+### Listing Global Hooks
+
+View all active global hooks:
+
+```bash
+# List hooks (if implemented)
+ls ~/.zoi/hooks/
+ls /etc/zoi/hooks/
+```
+
+Or check hook sources:
+
+- Built-in hooks are embedded in the Zoi binary
+- User hooks: `~/.zoi/hooks/*.yaml`
+- System hooks: `/etc/zoi/hooks/*.yaml`
+
+### Hook Execution Order
+
+During a transaction, hooks execute in this order:
+
+1. **Package-level pre-install hooks** (for each package)
+2. **Global PreTransaction hooks** (matching file changes)
+3. **Package installation/upgrade/removal**
+4. **Package-level post-install hooks** (for each package)
+5. **Global PostTransaction hooks** (matching file changes)
+
+**Example transaction:**
+
+```bash
+$ zoi install @zillowe/fonts-noto
+✓ Resolved dependencies
+> echo 'Installing fonts-noto'       # Package pre_install hook
+✓ Installed fonts-noto@1.0.0
+> echo 'Fonts installed'             # Package post_install hook
+> fc-cache -fv                      # Global font-cache hook
+✓ fonts-noto installed successfully
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Configuration initialization">
+    Run setup commands after installing a package:
+
+    ```lua
+    hooks {
+      post_install = {
+        "myapp init --user",
+        "myapp config set theme dark"
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Service management">
+    Enable and start services on installation:
+
+    ```lua
+    hooks {
+      post_install = {
+        "systemctl --user enable myservice",
+        "systemctl --user start myservice"
+      },
+      pre_remove = {
+        "systemctl --user stop myservice"
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Database migrations">
+    Run migrations after upgrading:
+
+    ```lua
+    hooks {
+      post_upgrade = {
+        "myapp db migrate"
+      }
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Cache updates">
+    Refresh system caches when files change:
+
+    ```yaml
+    trigger:
+      paths:
+        - "usr/share/icons/**"
+    action:
+      when: PostTransaction
+      exec: gtk-update-icon-cache
+    ```
+  </Accordion>
+
+  <Accordion title="License acceptance">
+    Prompt for license acceptance before installation:
+
+    ```lua
+    hooks {
+      pre_install = {
+        "cat /usr/share/licenses/myapp/LICENSE",
+        "read -p 'Accept license? (y/n): ' ACCEPT && [ \"$ACCEPT\" = \"y\" ]"
+      }
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Make hooks idempotent">
+    Hooks should be safe to run multiple times without side effects:
+
+    ```bash
+    # Bad: fails if directory exists
+    mkdir ~/.myapp
+
+    # Good: creates only if missing
+    mkdir -p ~/.myapp
+    ```
+  </Accordion>
+
+  <Accordion title="Handle errors gracefully">
+    Use `|| true` to ignore non-critical failures:
+
+    ```bash
+    systemctl --user stop myservice || true
+    ```
+  </Accordion>
+
+  <Accordion title="Avoid long-running commands">
+    Hooks should complete quickly. Long operations slow down installations.
+  </Accordion>
+
+  <Accordion title="Don't prompt for user input">
+    Hooks run in non-interactive environments (CI/CD). Automate decisions or fail fast.
+  </Accordion>
+
+  <Accordion title="Test hooks thoroughly">
+    Test install, upgrade, and removal hooks on all target platforms.
+  </Accordion>
+
+  <Accordion title="Log hook actions">
+    Use `echo` to inform users what hooks are doing:
+
+    ```bash
+    echo 'Regenerating font cache...'
+    fc-cache -fv
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Debugging Hooks
+
+If a hook fails, Zoi shows the failing command:
+
+```
+✗ Hook command failed: myapp --setup
+Command exited with code 1
+
+Installation aborted. Transaction rolled back.
+```
+
+To debug:
+
+1. **Run the command manually** to see the full error output
+2. **Check file paths**: Hooks run in the context of the installed package
+3. **Verify permissions**: Ensure the user has permissions to execute the hook commands
+4. **Check platform**: Ensure platform-specific hooks match the current platform
+
+### Verbose Mode
+
+Enable verbose logging to see hook execution details:
+
+```bash
+ZOI_LOG_LEVEL=debug zoi install package
+```
+
+## Rollback on Hook Failure
+
+If a hook fails, Zoi automatically rolls back the transaction:
+
+```bash
+$ zoi install @custom/myapp
+✓ Downloaded myapp@1.0.0
+✓ Installed to ~/.zoi/pkgs/store/myapp-1.0.0
+> myapp --setup
+✗ Hook command failed: myapp --setup
+
+--- Starting Rollback ---
+Rolling back installation of myapp v1.0.0...
+✓ Removed myapp@1.0.0
+--- Rollback Complete ---
+```
+
+This ensures your system is not left in a broken state.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Packages" icon="box" href="/guides/creating-packages">
+    Learn how to define hooks in .pkg.lua files
+  </Card>
+  <Card title="Lua API Reference" icon="code" href="/lua-api">
+    Complete Lua API for package definitions
+  </Card>
+  <Card title="Rollback" icon="clock-rotate-left" href="/commands/all-commands#rollback">
+    Roll back failed transactions
+  </Card>
+  <Card title="Extensions" icon="puzzle-piece" href="/extensions">
+    Extend Zoi with plugins and extensions
+  </Card>
+</CardGroup>

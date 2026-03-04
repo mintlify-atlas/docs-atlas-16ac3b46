@@ -1,0 +1,333 @@
+---
+title: Contributing
+description: How to contribute to Zoi and submit packages to Zoidberg
+---
+
+## Welcome Contributors
+
+Thank you for considering contributing to Zoi! Every contribution, no matter how small, helps make Zoi better for everyone. We welcome bug reports, feature requests, documentation improvements, code contributions, and package submissions.
+
+## Ways to Contribute
+
+### Reporting Bugs or Requesting Features
+
+If you find a bug or have an idea for a new feature, check our [issue tracker](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues) to see if it has already been reported.
+
+- [Report a Bug](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues/new?issuable_template=Bug%20Report)
+- [Request a Feature](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues/new?issuable_template=Feature%20Request)
+- [Request an Enhancement](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues/new?issuable_template=Enhancement%20Request)
+
+### Contributing Code
+
+We welcome code contributions! Follow these steps:
+
+1. **Fork the repository** on [GitLab](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi) (preferred) or [GitHub](https://github.com/Zillowe/Zoi)
+2. **Clone your fork** to your local machine
+3. **Create a new branch** for your changes
+   ```sh
+   git checkout -b my-feature-branch
+   ```
+4. **Make your changes** and commit them with clear, descriptive messages
+5. **Push your changes** to your fork
+6. **Open a merge request** to the `main` branch
+
+## Development Setup
+
+### Prerequisites
+
+To develop Zoi, you'll need:
+
+- **Rust:** Minimum version 1.88.0 (2024 edition) from the stable channel
+- **Make:** For the Makefile-based build process
+- **C Compiler:** Such as `gcc` (usually provided by `build-essential` or `base-devel`)
+- **OpenSSL Development Libraries:** `libssl-dev` (Debian/Ubuntu) or `openssl-devel` (Fedora)
+- **pkg-config:** For locating libraries
+- **liblzma:** Development libraries (`liblzma-dev`)
+- **Git:** Required to embed commit hash in binary
+
+See [rust-toolchain.toml](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/rust-toolchain.toml) for the exact Rust channel and [Cargo.toml](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/Cargo.toml) for version and edition.
+
+### First-Time Setup
+
+Because Zoi manages its own development, you must first build and install it manually:
+
+```sh
+# Configure the build
+./configure
+
+# Build and install
+make build
+sudo make install
+
+# (Optional) Install CLI completions and setup PATH
+make setup
+```
+
+Alternatively, install [pre-compiled binaries](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/releases) instead of building from source.
+
+Once you have a working `zoi` command, you can use it for all other development tasks.
+
+### Development Workflow
+
+Zoi uses a `zoi.yaml` file to manage project tasks. Run tasks with:
+
+```sh
+# Run a specific command
+zoi run <command>
+
+# Set up an environment
+zoi env <environment>
+
+# List available commands
+zoi run
+```
+
+#### Common Development Commands
+
+- **`check`** - Check for errors without building
+  ```sh
+  zoi run check
+  ```
+
+- **`lint`** - Run Clippy with automatic fixes
+  ```sh
+  zoi run lint
+  ```
+
+- **`fmt`** - Format code according to style guidelines
+  ```sh
+  zoi run fmt
+  ```
+
+- **`deps`** - Check for unused dependencies
+  ```sh
+  zoi run deps
+  ```
+
+- **`test`** - Run the test suite
+  ```sh
+  zoi run test
+  ```
+
+- **`build`** - Build a development version
+  ```sh
+  zoi run build
+  ```
+
+- **`install`** - Clean build and install with completions
+  ```sh
+  zoi run install
+  ```
+
+#### Pre-Commit Checks
+
+Before committing changes, run the `pre` environment to ensure quality:
+
+```sh
+zoi env pre
+```
+
+This runs: `deps`, `lint`, `fmt`, `check`, and `test` in sequence.
+
+#### Passing Arguments to Commands
+
+Pass arguments after the command alias:
+
+```sh
+# This runs 'cargo check --tests'
+zoi run check -- --tests
+```
+
+### Development with Docker
+
+You can use Docker to develop without polluting your local machine.
+
+#### Using the Official Image
+
+```sh
+# Pull the latest Zoi CLI image
+docker pull registry.gitlab.com/Zillowe/Zillwen/Zusty/Zoi/zoi:latest
+
+# Run a command
+docker run --rm registry.gitlab.com/Zillowe/Zillwen/Zusty/Zoi/zoi:latest zoi --version
+```
+
+#### Building Locally
+
+```sh
+# Build the Docker image
+docker build -t zoi .
+
+# Extract the binary
+docker create --name zoi-container zoi
+docker cp zoi-container:/usr/local/bin/zoi ./zoi
+docker rm zoi-container
+```
+
+## Commit Message Guidelines
+
+Write clear and descriptive commit messages explaining the "what" and "why" of your changes.
+
+We use [ZFGM Commits](https://zillowe.qzz.io/docs/methods/zfgm/commits) for commit message formatting. To use it with [GCT](https://gitlab.com/Zillowe/Zillwen/Zusty/GCT), see the [GCT Docs](https://zillowe.qzz.io/docs/zds/gct).
+
+## Code Standards
+
+### Rust Guidelines
+
+- Follow the Rust [API Guidelines](https://rust-lang.github.io/api-guidelines/)
+- Use `cargo fmt` for consistent formatting
+- Run `cargo clippy` and address warnings
+- Write tests for new functionality
+- Add documentation comments for public APIs
+
+### Code Style
+
+- Prefer clarity over cleverness
+- Write self-documenting code with clear variable names
+- Add comments for complex logic
+- Keep functions focused and modular
+
+## Submitting Packages to Zoidberg
+
+Zoidberg is Zoi's official package registry. You can contribute by adding new packages or improving existing ones.
+
+### Package Submission Process
+
+1. **Create your package definition**
+
+   See the [Packaging Guide](/docs/zds/zoi/packaging) for details on writing `.pkg.lua` files.
+
+2. **Test locally**
+
+   ```sh
+   # Build and install
+   zoi package build my-package.pkg.lua --type binary
+   zoi package install my-package.pkg.lua
+   
+   # Verify it works
+   my-package --version
+   
+   # Clean up
+   zoi uninstall my-package
+   ```
+
+3. **Fork Zoidberg**
+
+   - GitLab: https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg
+   - GitHub: https://github.com/Zillowe/Zoidberg
+
+4. **Add your package**
+
+   ```sh
+   cd Zoidberg
+   mkdir -p packages/my-package
+   cp my-package.pkg.lua packages/my-package/
+   git add packages/my-package/
+   git commit -m "Add my-package v1.0.0"
+   ```
+
+5. **Push and create merge request**
+
+   ```sh
+   git push origin my-feature-branch
+   ```
+
+   Open a merge request on GitLab or pull request on GitHub.
+
+6. **Fill out the template**
+
+   Provide:
+   - Package name and version
+   - Description of what it does
+   - Why it should be included
+   - Testing performed
+   - Any dependencies
+
+### Package Quality Requirements
+
+For packages to be accepted:
+
+- **Valid package definition** with all required fields
+- **Working installation** tested on target platforms
+- **Accurate checksums** (SHA256) for all downloads
+- **Declared dependencies** using proper package manager prefixes
+- **Clear description** and metadata
+- **Proper licensing** information (SPDX format)
+- **No security vulnerabilities** in the packaged software
+
+### Repository Tiers
+
+New packages start in the **Community** tier and can be promoted based on:
+
+- Quality and stability
+- Popularity and usage
+- Maintenance and updates
+- Security and compliance
+
+See [Zoidberg - Repository Tiers](/docs/zds/zoi/zoidberg#repository-tiers) for details.
+
+## Documentation Contributions
+
+Improving documentation is a valuable contribution:
+
+- Fix typos and grammatical errors
+- Clarify confusing sections
+- Add examples and use cases
+- Translate to other languages
+- Create tutorials and guides
+
+Documentation is located in:
+- `/docs/` - User-facing documentation
+- `/docs/lib/` - Library API documentation
+- `src/lib.rs` - Rust doc comments for docs.rs
+
+## Community Guidelines
+
+By contributing to Zoi, you agree to abide by our [Code of Conduct](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/CODE_OF_CONDUCT.md).
+
+### Be Respectful
+
+- Treat everyone with respect and kindness
+- Welcome newcomers and help them get started
+- Provide constructive feedback
+- Assume good intentions
+
+### Be Collaborative
+
+- Communicate openly and transparently
+- Ask questions when unsure
+- Share knowledge and help others learn
+- Give credit where it's due
+
+## Getting Help
+
+If you need help contributing:
+
+- **Documentation:** [Zoi Docs](https://zillowe.qzz.io/docs/zds/zoi)
+- **Discord:** [Join our community](https://discord.gg/P4R7yaA3hf)
+- **Issues:** [Browse existing issues](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues)
+- **Discussions:** Ask questions in issue comments or Discord
+
+## Recognition
+
+All contributors are recognized for their efforts:
+
+- Listed in release notes
+- Mentioned in the CHANGELOG
+- Attribution in commit history
+- Potential promotion to maintainer for ongoing contributors
+
+## License
+
+By contributing to Zoi, you agree that your contributions will be licensed under the [Apache 2.0 License](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/LICENSE).
+
+## Related Resources
+
+- [CONTRIBUTING.md](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/CONTRIBUTING.md) - Official contribution guidelines
+- [Packaging Guide](/docs/zds/zoi/packaging) - Create packages for Zoi
+- [Zoidberg](/docs/zds/zoi/zoidberg) - Official package registry
+- [Code of Conduct](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/blob/main/CODE_OF_CONDUCT.md) - Community standards
+
+---
+
+Thank you for contributing to Zoi! We look forward to working with you.

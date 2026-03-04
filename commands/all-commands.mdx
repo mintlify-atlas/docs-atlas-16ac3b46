@@ -1,0 +1,914 @@
+---
+title: All Commands
+description: Comprehensive reference of all Zoi commands
+---
+
+This page provides a complete overview of all Zoi commands. For detailed documentation on specific commands, see their individual pages.
+
+## Core Commands
+
+### install
+
+Install packages from registries, local files, URLs, or git repositories.
+
+```bash
+zoi install [OPTIONS] [SOURCES]...
+zoi i [OPTIONS] [SOURCES]...  # alias
+```
+
+**See:** [zoi install](/docs/zds/zoi/commands/install)
+
+---
+
+### uninstall
+
+Remove packages previously installed by Zoi.
+
+```bash
+zoi uninstall [OPTIONS] <PACKAGES>...
+zoi un [OPTIONS] <PACKAGES>...   # alias
+zoi rm [OPTIONS] <PACKAGES>...   # alias
+zoi remove [OPTIONS] <PACKAGES>... # alias
+```
+
+**See:** [zoi uninstall](/docs/zds/zoi/commands/uninstall)
+
+---
+
+### update
+
+Update packages to their latest versions.
+
+```bash
+zoi update [OPTIONS] [PACKAGES]...
+zoi up [OPTIONS] [PACKAGES]...  # alias
+```
+
+**See:** [zoi update](/docs/zds/zoi/commands/update)
+
+---
+
+### search
+
+Search for packages by name, description, or tags.
+
+```bash
+zoi search [OPTIONS] <TERM>
+zoi s [OPTIONS] <TERM>  # alias
+```
+
+**See:** [zoi search](/docs/zds/zoi/commands/search)
+
+---
+
+### sync
+
+Synchronize package databases from remote registries.
+
+```bash
+zoi sync [OPTIONS] [SUBCOMMAND]
+zoi sy [OPTIONS] [SUBCOMMAND]  # alias
+```
+
+**See:** [zoi sync](/docs/zds/zoi/commands/sync)
+
+---
+
+## Package Management
+
+### list
+
+List installed or all available packages.
+
+```bash
+zoi list [OPTIONS]
+zoi ls [OPTIONS]  # alias
+```
+
+**Options:**
+- `--all, -a`: List all packages from database, not just installed
+- `--registry <HANDLE>`: Filter by registry handle
+- `--repo <REPO>`: Filter by repository
+- `--type, -t <TYPE>`: Filter by package type
+- `--foreign, -m`: List packages not in any registry
+
+**Examples:**
+```bash
+# List installed packages
+zoi list
+
+# List all available packages
+zoi list --all
+
+# Filter by repository
+zoi list --repo extra
+```
+
+---
+
+### show
+
+Display detailed information about a package.
+
+```bash
+zoi show <PACKAGE>
+```
+
+**Options:**
+- `--raw`: Display raw package file (unformatted)
+
+**Example:**
+```bash
+zoi show nodejs
+zoi show --raw python
+```
+
+---
+
+### provides
+
+Find which package provides a specific command or file.
+
+```bash
+zoi provides <TERM>
+```
+
+**Example:**
+```bash
+# Find which package provides 'gcc'
+zoi provides gcc
+
+# Find which package owns a file
+zoi provides /usr/bin/python
+```
+
+---
+
+### owner
+
+Find which package owns a specific file.
+
+```bash
+zoi owner <PATH>
+zoi owns <PATH>  # alias
+```
+
+**Example:**
+```bash
+zoi owner /usr/bin/node
+zoi owns ~/.zoi/store/user/zoidberg/main/nodejs/latest/bin/node
+```
+
+---
+
+### files
+
+List all files owned by a package.
+
+```bash
+zoi files <PACKAGE>
+```
+
+**Example:**
+```bash
+zoi files nodejs
+```
+
+---
+
+### tree
+
+Visualize the dependency tree of a package.
+
+```bash
+zoi tree <PACKAGES>...
+```
+
+**Example:**
+```bash
+zoi tree nodejs
+zoi tree gcc python
+```
+
+---
+
+### why
+
+Explain why a package is installed (dependency chain).
+
+```bash
+zoi why <PACKAGE>
+```
+
+**Example:**
+```bash
+zoi why libssl
+# Output: libssl is required by: nodejs -> npm
+```
+
+---
+
+## Version Management
+
+### pin
+
+Pin a package to a specific version to prevent updates.
+
+```bash
+zoi pin <PACKAGE> <VERSION>
+```
+
+**Example:**
+```bash
+# Pin nodejs to version 18.0.0
+zoi pin nodejs 18.0.0
+
+# Prevent accidental updates
+zoi update --all  # Skips pinned packages
+```
+
+---
+
+### unpin
+
+Unpin a package, allowing it to be updated.
+
+```bash
+zoi unpin <PACKAGE>
+```
+
+**Example:**
+```bash
+zoi unpin nodejs
+zoi update nodejs  # Now can update
+```
+
+---
+
+### downgrade
+
+Downgrade a package to a previous version.
+
+```bash
+zoi downgrade <PACKAGE>
+zoi dg <PACKAGE>  # alias
+```
+
+Interactively choose from available cached versions.
+
+**Example:**
+```bash
+zoi downgrade nodejs
+# Prompts with:
+# 1. 20.0.0 (current)
+# 2. 19.5.0
+# 3. 18.0.0
+# Select version:
+```
+
+---
+
+### rollback
+
+Rollback a package to the previously installed version.
+
+```bash
+zoi rollback <PACKAGE>
+zoi rollback --last-transaction
+```
+
+**Options:**
+- `--last-transaction`: Rollback the entire last transaction
+
+**Example:**
+```bash
+# Rollback single package
+zoi rollback nodejs
+
+# Rollback last operation
+zoi rollback --last-transaction
+```
+
+---
+
+### upgrade
+
+Upgrade Zoi itself to the latest version.
+
+```bash
+zoi upgrade [OPTIONS]
+zoi ug [OPTIONS]  # alias
+```
+
+**Options:**
+- `--force`: Force a full download
+- `--tag <TAG>`: Upgrade to specific git tag
+- `--branch <BRANCH>`: Upgrade to latest release of specific branch
+
+**Example:**
+```bash
+# Upgrade to latest
+zoi upgrade
+
+# Upgrade to specific version
+zoi upgrade --tag v1.7.0
+```
+
+---
+
+## Development Commands
+
+### dev
+
+Enter a development shell for the current project.
+
+```bash
+zoi dev [OPTIONS]
+zoi develop [OPTIONS]  # alias
+```
+
+**See:** [zoi dev](/docs/zds/zoi/commands/dev)
+
+---
+
+### exec
+
+Execute a package command without installing it.
+
+```bash
+zoi exec [OPTIONS] <SOURCE> [ARGS]...
+zoi x [OPTIONS] <SOURCE> [ARGS]...  # alias
+```
+
+**See:** [zoi exec](/docs/zds/zoi/commands/exec)
+
+---
+
+### run
+
+Execute a command defined in `zoi.yaml`.
+
+```bash
+zoi run [COMMAND] [ARGS]...
+```
+
+**Example:**
+```yaml
+# zoi.yaml
+commands:
+  build:
+    command: npm run build
+  test:
+    command: npm test
+```
+
+```bash
+zoi run build
+zoi run test
+
+# Without argument, shows interactive prompt
+zoi run
+```
+
+---
+
+### env
+
+Manage and set up project environments from `zoi.yaml`.
+
+```bash
+zoi env [ENVIRONMENT]
+```
+
+**Example:**
+```yaml
+# zoi.yaml
+environments:
+  production:
+    packages: [nodejs, nginx]
+    setup:
+      - npm install --production
+  development:
+    packages: [nodejs, npm]
+    setup:
+      - npm install
+```
+
+```bash
+zoi env production
+zoi env  # Interactive prompt
+```
+
+---
+
+### shell
+
+Enter an ephemeral shell with specific packages or set up completions.
+
+```bash
+zoi shell [SHELL] [OPTIONS]
+```
+
+**Options:**
+- `-p, --package <PACKAGE>`: Packages to include
+- `-r, --run <COMMAND>`: Command to run instead of interactive shell
+- `--scope <user|system>`: Scope for completion setup
+
+**Examples:**
+```bash
+# Ephemeral shell with packages
+zoi shell -p nodejs -p python
+
+# Run command in ephemeral environment
+zoi shell -p nodejs -r "node script.js"
+
+# Set up completions
+zoi shell bash
+zoi shell zsh --scope user
+```
+
+---
+
+## Package Building
+
+### package
+
+Build, test, and manage packages.
+
+```bash
+zoi package <SUBCOMMAND> [OPTIONS]
+zoi pkg <SUBCOMMAND> [OPTIONS]  # alias
+```
+
+**See:** [zoi package](/docs/zds/zoi/commands/package)
+
+---
+
+### create
+
+Create a new application using a package template.
+
+```bash
+zoi create <SOURCE> [APP_NAME]
+```
+
+**Example:**
+```bash
+# Create React app
+zoi create react-template my-app
+
+# Create from registry template
+zoi create @templates/nodejs-cli my-cli
+```
+
+---
+
+## Maintenance Commands
+
+### autoremove
+
+Remove packages installed as dependencies that are no longer needed.
+
+```bash
+zoi autoremove [OPTIONS]
+```
+
+**Options:**
+- `--dry-run`: Show what would be removed
+
+**Example:**
+```bash
+# Preview removals
+zoi autoremove --dry-run
+
+# Remove orphaned dependencies
+zoi autoremove
+```
+
+---
+
+### mark
+
+Change installation reason of packages (explicit vs. dependency).
+
+```bash
+zoi mark <PACKAGES>... [OPTIONS]
+zoi m <PACKAGES>... [OPTIONS]  # alias
+```
+
+**Options:**
+- `--as-dependency`: Mark as dependency
+- `--as-explicit`: Mark as explicitly installed
+
+**Example:**
+```bash
+# Mark as explicit (prevent autoremove)
+zoi mark --as-explicit libssl
+
+# Mark as dependency
+zoi mark --as-dependency libcurl
+```
+
+---
+
+### clean
+
+Clear cached package binaries.
+
+```bash
+zoi clean [OPTIONS]
+```
+
+**Options:**
+- `--dry-run`: Show what would be cleaned
+
+**Example:**
+```bash
+# Preview cleanup
+zoi clean --dry-run
+
+# Clean cache
+zoi clean
+```
+
+---
+
+### cache
+
+Manage Zoi's local package cache.
+
+```bash
+zoi cache <SUBCOMMAND>
+```
+
+**Subcommands:**
+
+**add** - Add package archive(s) to cache:
+```bash
+zoi cache add <FILES>...
+zoi cache add package.pkg.tar.zst
+```
+
+**clear** - Clear the cache:
+```bash
+zoi cache clear
+zoi cache clean  # alias
+zoi cache clear --dry-run
+```
+
+**list** - List cached archives:
+```bash
+zoi cache list
+zoi cache ls  # alias
+```
+
+---
+
+### history
+
+Show package operation history.
+
+```bash
+zoi history
+```
+
+Displays transaction log of all package operations (install, update, uninstall).
+
+---
+
+## Repository Management
+
+### repo
+
+Manage package repositories.
+
+```bash
+zoi repo <SUBCOMMAND>
+zoi repositories <SUBCOMMAND>  # alias
+```
+
+**Subcommands:**
+- `add <NAME|URL>`: Add official repo or clone from git URL
+- `remove <NAME>`, `rm <NAME>`: Remove a repo
+- `list`, `ls`: List repositories (use `list all` for all available)
+- `git ls`: List cloned git repositories
+- `git rm <REPO>`: Remove a git repository
+
+**Examples:**
+```bash
+# Add official repository
+zoi repo add extra
+
+# Clone custom git repository
+zoi repo add https://github.com/myorg/packages.git
+
+# List active repositories
+zoi repo list
+
+# List all available
+zoi repo list all
+```
+
+---
+
+## Security & Verification
+
+### pgp
+
+Manage PGP keys for package signature verification.
+
+```bash
+zoi pgp <SUBCOMMAND>
+```
+
+**Common operations:**
+- Import keys
+- List keys
+- Remove keys
+- Verify package signatures
+
+---
+
+## Services
+
+### service
+
+Manage background services for installed packages.
+
+```bash
+zoi service <SUBCOMMAND>
+zoi svc <SUBCOMMAND>  # alias
+```
+
+**Typical subcommands:**
+- `start <SERVICE>`: Start a service
+- `stop <SERVICE>`: Stop a service
+- `restart <SERVICE>`: Restart a service
+- `status <SERVICE>`: Check service status
+- `enable <SERVICE>`: Enable service to start on boot
+- `disable <SERVICE>`: Disable service auto-start
+- `list`: List all services
+
+---
+
+## Extensions
+
+### extension
+
+Manage Zoi extensions.
+
+```bash
+zoi extension <SUBCOMMAND>
+zoi ext <SUBCOMMAND>  # alias
+```
+
+**Subcommands:**
+
+**add** - Install an extension:
+```bash
+zoi extension add <NAME>
+```
+
+**remove** - Remove an extension:
+```bash
+zoi extension remove <NAME>
+```
+
+---
+
+## Information & Diagnostics
+
+### version
+
+Display version and build information.
+
+```bash
+zoi version
+zoi v  # alias
+zoi --version
+zoi -v
+```
+
+**Output:**
+```
+Zoi 1.7.0 (Production Release)
+Commit: abc1234
+Build: Release
+```
+
+---
+
+### about
+
+Display application information and credits.
+
+```bash
+zoi about
+```
+
+Shows full application details, author, license, and homepage.
+
+---
+
+### info
+
+Display detected operating system and architecture information.
+
+```bash
+zoi info
+```
+
+**Output:**
+```
+OS: Linux
+Distribution: Ubuntu 22.04
+Architecture: x86_64
+Package Managers: apt, snap
+```
+
+---
+
+### check
+
+Verify essential third-party dependencies.
+
+```bash
+zoi check
+```
+
+Checks for required tools like `git` in PATH.
+
+---
+
+### doctor
+
+Diagnose common issues and provide suggestions.
+
+```bash
+zoi doctor
+```
+
+Runs comprehensive health checks:
+- Verifies installation integrity
+- Checks for common misconfigurations
+- Validates package database
+- Tests network connectivity
+- Suggests fixes for detected issues
+
+---
+
+### man
+
+Display a package's manual page.
+
+```bash
+zoi man <PACKAGE>
+```
+
+**Options:**
+- `--upstream`: View upstream manual even if downloaded
+- `--raw`: Print raw manual to terminal
+
+**Example:**
+```bash
+zoi man nodejs
+zoi man --raw python
+```
+
+---
+
+## Configuration
+
+### telemetry
+
+Manage opt-in anonymous telemetry.
+
+```bash
+zoi telemetry <status|enable|disable>
+```
+
+**Examples:**
+```bash
+# Check status
+zoi telemetry status
+
+# Enable telemetry
+zoi telemetry enable
+
+# Disable telemetry
+zoi telemetry disable
+```
+
+---
+
+## Advanced/Hidden Commands
+
+### helper
+
+Helper commands for various internal tasks.
+
+```bash
+zoi helper <SUBCOMMAND>
+```
+
+---
+
+### generate-completions
+
+Generate shell completion scripts (hidden command).
+
+```bash
+zoi generate-completions <SHELL>
+```
+
+**Shells:** bash, zsh, fish, powershell, elvish
+
+Prefer using `zoi shell <shell>` instead.
+
+---
+
+### generate-manual
+
+Generate man pages for Zoi (hidden command).
+
+```bash
+zoi generate-manual
+```
+
+---
+
+## Global Flags
+
+These flags apply to all commands:
+
+<ParamField path="-y, --yes" type="boolean" default="false">
+  Automatically answer yes to all prompts.
+</ParamField>
+
+<ParamField path="-r, --root" type="path">
+  Operate on a different root directory.
+</ParamField>
+
+<ParamField path="--offline" type="boolean" default="false">
+  Do not attempt network connections.
+</ParamField>
+
+<ParamField path="--pkg-dir" type="path[]">
+  Additional directories to search for package archives.
+</ParamField>
+
+**Example:**
+```bash
+# Non-interactive installation
+zoi install -y nodejs
+
+# Work offline
+zoi --offline search python
+
+# Use alternate root
+zoi --root /mnt/system install gcc
+```
+
+---
+
+## Exit Codes
+
+All Zoi commands follow these conventions:
+
+- `0`: Success
+- `1`: General error
+- `1`: Invalid arguments
+- `1`: Operation canceled by user
+- `1`: Network error (when online operations fail)
+- Other: Command-specific error codes
+
+---
+
+## Command Index
+
+### By Category
+
+**Package Management:**
+install, uninstall, update, search, list, show, provides, owner, files, tree, why
+
+**Version Control:**
+pin, unpin, downgrade, rollback, upgrade
+
+**Development:**
+dev, exec, run, env, shell, package, create
+
+**Maintenance:**
+autoremove, mark, clean, cache, history
+
+**Repository:**
+sync, repo
+
+**System:**
+service, extension, pgp, telemetry
+
+**Information:**
+version, about, info, check, doctor, man
+
+### Alphabetical
+
+about, autoremove, cache, check, clean, create, dev, doctor, downgrade, env, exec, extension, files, history, info, install, list, man, mark, owner, package, pgp, pin, provides, repo, rollback, run, search, service, shell, show, sync, telemetry, tree, uninstall, unpin, update, upgrade, version, why

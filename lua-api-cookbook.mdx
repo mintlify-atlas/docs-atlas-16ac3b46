@@ -1,0 +1,545 @@
+---
+title: Lua API Cookbook
+description: Practical recipes and patterns for writing .pkg.lua package definitions
+---
+
+This cookbook provides real-world examples and patterns for common packaging tasks using Zoi's Lua API.
+
+## Basic Patterns
+
+### Minimal Package
+
+The simplest possible package definition:
+
+```lua
+metadata {
+  name = "hello",
+  version = "1.0.0",
+  description = "A simple hello world program",
+  repo = "main",
+  license = "MIT",
+  maintainer = {
+    name = "Your Name",
+    email = "you@example.com"
+  }
+}
+
+prepare {}
+  -- Download and extract source
+  UTILS.EXTRACT("https://example.com/hello-1.0.0.tar.gz")
+end
+
+package {}
+  -- Compile and copy binary
+  cmd("make")
+  zcp("hello", "bin/hello")
+end
+```
+
+### GitHub Release Package
+
+Package the latest release from GitHub:
+
+```lua
+-- Fetch latest version dynamically
+local latest_tag = UTILS.FETCH.GITHUB.LATEST.release({
+  repo = "user/project"
+})
+
+metadata {
+  name = "my-tool",
+  version = latest_tag:gsub("^v", ""),  -- Remove 'v' prefix
+  description = "A useful CLI tool",
+  repo = "main",
+  license = "Apache-2.0",
+  maintainer = {
+    name = "Packager Name",
+    email = "packager@example.com"
+  },
+  git = "https://github.com/user/project",
+  bins = { "my-tool" }
+}
+
+prepare {}
+  local url = string.format(
+    "https://github.com/user/project/archive/refs/tags/%s.tar.gz",
+    latest_tag
+  )
+  UTILS.EXTRACT(url, "source")
+end
+
+package {}
+  cmd("cd source && make && make install PREFIX=" .. BUILD_DIR)
+  zcp("bin/my-tool", "bin/my-tool")
+  zcp("share/man/my-tool.1", "share/man/man1/my-tool.1")
+end
+```
+
+### Pre-built Binary Package
+
+Package pre-compiled binaries with platform detection:
+
+```lua
+local VERSION = "2.5.0"
+
+-- Determine platform-specific binary
+local platform_map = {
+  ["linux-amd64"] = "my-tool-linux-x86_64",
+  ["linux-arm64"] = "my-tool-linux-aarch64",
+  ["darwin-amd64"] = "my-tool-macos-x86_64",
+  ["darwin-arm64"] = "my-tool-macos-aarch64"
+}
+
+local platform_key = SYSTEM.OS .. "-" .. SYSTEM.ARCH
+local binary_name = platform_map[platform_key]
+
+if not binary_name then
+  error("Unsupported platform: " .. platform_key)
+end
+
+metadata {
+  name = "my-tool",
+  version = VERSION,
+  description = "Pre-built binary distribution",
+  repo = "main",
+  license = "MIT",
+  maintainer = { name = "Packager", email = "pkg@example.com" },
+  bins = { "my-tool" }
+}
+
+prepare {}
+  local url = string.format(
+    "https://github.com/user/project/releases/download/v%s/%s",
+    VERSION, binary_name
+  )
+  
+  UTILS.FILE(url, "my-tool")
+  UTILS.FS.chmod("my-tool", 0o755)
+end
+
+package {}
+  zcp("my-tool", "bin/my-tool")
+end
+```
+
+## Verification
+
+### Hash Verification
+
+Verify downloaded files with checksums:
+
+```lua
+prepare {}
+  local VERSION = "1.4.2"
+  local archive = "tool-" .. VERSION .. ".tar.gz"
+  
+  -- Download archive
+  UTILS.FILE(
+    "https://example.com/releases/" .. archive,
+    archive
+  )
+  
+  -- Download and parse checksum file
+  local checksums = UTILS.FETCH.url("https://example.com/releases/SHA256SUMS")
+  local expected_hash = UTILS.PARSE.checksumFile(checksums, archive)
+  
+  -- Verify
+  if not verifyHash(archive, "sha256-" .. expected_hash) then
+    error("Checksum verification failed for " .. archive)
+  end
+  
+  UTILS.EXTRACT(archive)
+end
+```
+
+### PGP Signature Verification
+
+Verify releases with PGP signatures:
+
+```lua
+prepare {}
+  local archive = "project-1.0.0.tar.gz"
+  local sig = archive .. ".asc"
+  
+  -- Download release and signature
+  UTILS.FILE("https://example.com/releases/" .. archive, archive)
+  UTILS.FILE("https://example.com/releases/" .. sig, sig)
+  
+  -- Add maintainer's public key
+  addPgpKey(
+    "https://example.com/maintainer-pubkey.asc",
+    "project-maintainer"
+  )
+  
+  -- Verify signature
+  if not verifySignature(archive, sig, "project-maintainer") then
+    error("Signature verification failed")
+  end
+  
+  UTILS.EXTRACT(archive)
+end
+```
+
+## Dynamic Version Detection
+
+### Latest Git Tag
+
+Automatic version from latest Git tag:
+
+```lua
+local latest_version = UTILS.FETCH.GITHUB.LATEST.tag({
+  repo = "stedolan/jq"
+})
+
+metadata {
+  name = "jq",
+  version = latest_version:gsub("^jq%-", ""),  -- Remove 'jq-' prefix
+  -- ... rest of metadata
+}
+```
+
+### Scraping Version from API
+
+Parse version from JSON API:
+
+```lua
+local api_response = UTILS.FETCH.url("https://api.example.com/version")
+local data = UTILS.PARSE.json(api_response)
+
+metadata {
+  name = "example",
+  version = data.latest.version,
+  -- ...
+}
+```
+
+## Build Configurations
+
+### Autotools Build
+
+Standard `./configure && make && make install` pattern:
+
+```lua
+prepare {}
+  UTILS.EXTRACT("https://example.com/source.tar.gz", "src")
+end
+
+package {}
+  cmd([[cd src && 
+    ./configure --prefix=/usr && 
+    make -j$(nproc) && 
+    make install DESTDIR=]] .. BUILD_DIR)
+  
+  zcp("usr/bin/my-tool", "bin/my-tool")
+  zcp("usr/share/", "share/")
+end
+```
+
+### CMake Build
+
+```lua
+package {}
+  cmd([[cd src && 
+    mkdir -p build && 
+    cd build && 
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr && 
+    make -j$(nproc) && 
+    make install DESTDIR=]] .. BUILD_DIR)
+  
+  zcp("usr/bin/my-tool", "bin/my-tool")
+end
+```
+
+### Cargo (Rust) Build
+
+```lua
+prepare {}
+  UTILS.EXTRACT("https://github.com/user/rust-project/archive/v1.0.0.tar.gz")
+end
+
+package {}
+  cmd("cd rust-project-1.0.0 && cargo build --release")
+  zcp("rust-project-1.0.0/target/release/my-tool", "bin/my-tool")
+end
+```
+
+### Go Build
+
+```lua
+package {}
+  cmd([[cd src && 
+    go build -o my-tool . && 
+    install -Dm755 my-tool ]] .. BUILD_DIR .. [[/bin/my-tool]])
+  
+  zcp("bin/my-tool", "bin/my-tool")
+end
+```
+
+## Dependencies
+
+### Runtime Dependencies
+
+```lua
+dependencies {
+  runtime = {
+    required = { "libc", "zlib" }
+  }
+}
+```
+
+### Optional Dependencies
+
+```lua
+dependencies {
+  runtime = {
+    required = { "python" },
+    optional = { "numpy", "matplotlib" }  -- Enhances functionality
+  }
+}
+```
+
+### Dependency Options (User Choice)
+
+```lua
+dependencies {
+  runtime = {
+    required = { "web-server" },
+    options = {
+      {
+        name = "web-backend",
+        desc = "Choose web server backend",
+        depends = { "nginx", "apache", "caddy" }
+      }
+    }
+  }
+}
+```
+
+### Build Dependencies
+
+```lua
+dependencies {
+  runtime = {
+    required = { "libfoo" }
+  },
+  build = {
+    required = { "gcc", "make", "pkg-config" }
+  }
+}
+```
+
+## Platform-Specific Logic
+
+### Different Sources per Platform
+
+```lua
+prepare {}
+  local url_template
+  
+  if SYSTEM.OS == "linux" and SYSTEM.ARCH == "amd64" then
+    url_template = "https://example.com/tool-linux-amd64.tar.gz"
+  elseif SYSTEM.OS == "darwin" and SYSTEM.ARCH == "arm64" then
+    url_template = "https://example.com/tool-macos-arm64.tar.gz"
+  else
+    error("Unsupported platform: " .. SYSTEM.OS .. "-" .. SYSTEM.ARCH)
+  end
+  
+  UTILS.EXTRACT(url_template)
+end
+```
+
+### Platform-Specific Build Flags
+
+```lua
+package {}
+  local flags = ""
+  
+  if SYSTEM.OS == "linux" then
+    flags = "--enable-systemd"
+  elseif SYSTEM.OS == "darwin" then
+    flags = "--enable-launchd"
+  end
+  
+  cmd("./configure " .. flags .. " && make && make install")
+end
+```
+
+### Distribution-Specific Logic
+
+```lua
+if SYSTEM.DISTRO == "arch" then
+  -- Arch-specific configuration
+elseif SYSTEM.DISTRO == "ubuntu" or SYSTEM.DISTRO == "debian" then
+  -- Debian-based configuration
+end
+```
+
+## Advanced Patterns
+
+### Sub-packages
+
+Create multiple packages from one source:
+
+```lua
+metadata {
+  name = "myproject",
+  version = "2.0.0",
+  sub_packages = { "myproject-dev", "myproject-docs" },
+  -- ...
+}
+
+package {}
+  if SUBPKG == nil then
+    -- Main package
+    zcp("bin/myproject", "bin/myproject")
+    zcp("lib/", "lib/myproject/")
+  elseif SUBPKG == "myproject-dev" then
+    -- Development files
+    zcp("include/", "include/myproject/")
+    zcp("lib/pkgconfig/", "lib/pkgconfig/")
+  elseif SUBPKG == "myproject-docs" then
+    -- Documentation
+    zcp("docs/", "share/doc/myproject/")
+    zcp("man/", "share/man/")
+  end
+end
+```
+
+### Hooks
+
+Run scripts at install/upgrade/remove:
+
+```lua
+hooks {
+  post_install = {
+    "systemctl daemon-reload",
+    "systemctl enable my-service"
+  },
+  pre_remove = {
+    "systemctl stop my-service",
+    "systemctl disable my-service"
+  },
+  post_upgrade = {
+    "systemctl restart my-service"
+  }
+}
+```
+
+### Services
+
+Define a system service:
+
+```lua
+service {
+  run = "/usr/bin/my-daemon --config /etc/my-daemon/config.yaml",
+  run_at_load = true,
+  working_dir = "/var/lib/my-daemon",
+  env = {
+    LOG_LEVEL = "info",
+    DATA_DIR = "/var/lib/my-daemon/data"
+  },
+  log_path = "/var/log/my-daemon.log",
+  error_log_path = "/var/log/my-daemon-error.log"
+}
+```
+
+### File Backup
+
+Preserve user configuration on upgrade/removal:
+
+```lua
+metadata {
+  -- ...
+  backup = {
+    "/etc/my-app/config.yaml",
+    "/etc/my-app/users.db"
+  }
+}
+```
+
+### Import External Files
+
+Organize complex packages with helper files:
+
+**helpers.lua:**
+```lua
+function download_and_verify(url, hash)
+  local filename = url:match("([^/]+)$")
+  UTILS.FILE(url, filename)
+  if not verifyHash(filename, "sha256-" .. hash) then
+    error("Verification failed: " .. filename)
+  end
+  return filename
+end
+```
+
+**package.pkg.lua:**
+```lua
+INCLUDE("helpers.lua")
+
+prepare {}
+  local archive = download_and_verify(
+    "https://example.com/source.tar.gz",
+    "abc123def456..."
+  )
+  UTILS.EXTRACT(archive)
+end
+```
+
+### Version Constraints
+
+Parse and compare versions:
+
+```lua
+local latest = UTILS.FETCH.GITHUB.LATEST.release({ repo = "user/project" })
+local version_num = latest:gsub("^v", "")
+
+-- Parse version components
+local major, minor, patch = version_num:match("(%d+)%.(%d+)%.(%d+)")
+
+if tonumber(major) >= 2 then
+  -- Use newer build system
+  cmd("cmake -B build -DUSE_NEW_API=ON")
+else
+  -- Use legacy build system
+  cmd("./configure")
+end
+```
+
+## Debugging Tips
+
+### Print Debug Information
+
+```lua
+prepare {}
+  print("Build directory: " .. BUILD_DIR)
+  print("OS: " .. SYSTEM.OS)
+  print("Arch: " .. SYSTEM.ARCH)
+  print("Package version: " .. PKG.version)
+  
+  -- Your actual prepare code
+end
+```
+
+### Test Package Builds
+
+Use the `test()` function:
+
+```lua
+test {}
+  local output = cmd("./bin/my-tool --version")
+  print("Version output: " .. output)
+  
+  if not output:find(PKG.version) then
+    print("ERROR: Version mismatch")
+    return false
+  end
+  
+  return true
+end
+```
+
+## See Also
+
+- [Lua API Reference](/docs/zds/zoi/lua-api) - Complete API documentation
+- [Package Creation Guide](/docs/zds/zoi/essentials/packaging) - Packaging tutorial

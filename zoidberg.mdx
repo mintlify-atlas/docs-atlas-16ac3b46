@@ -1,0 +1,215 @@
+---
+title: Zoidberg
+description: The official package registry and repository system for Zoi
+---
+
+## What is Zoidberg?
+
+Zoidberg is Zoi's official package database and registry system. It serves as the central repository hosting thousands of package definitions that Zoi can install and manage across all supported platforms.
+
+Zoidberg is hosted as a Git repository, making it decentralized, verifiable, and easy to mirror. Every package in Zoidberg is defined using dynamic Lua scripts (`.pkg.lua` files) that describe how to fetch, build, and install software.
+
+## Repository Locations
+
+Zoidberg is available from multiple forges:
+
+- **Primary:** [GitLab](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg)
+- **Mirrors:** 
+  - [GitHub](https://github.com/Zillowe/Zoidberg)
+  - [Codeberg](https://codeberg.org/Zillowe/Zoidberg)
+
+All mirrors are kept in sync and can be used interchangeably.
+
+## Repository Tiers
+
+Zoidberg organizes packages into different tiers based on their stability, maintenance status, and use case:
+
+| Tier | Description | Use Case |
+|------|-------------|----------|
+| **Core** | Essential packages, libraries and very common/maintained packages | System-critical tools, widely-used libraries |
+| **Main** | Packages that don't fit in Core but are essential for most people | Common development tools, popular applications |
+| **Extra** | Packages that are new, not very common or maintained, not preferable | Specialized tools, niche applications |
+| **Community** | User submitted packages that are new, can be upgraded to a higher repo | Community contributions, experimental packages |
+| **Test** | Testing repo for new Zoi features and for new packages before release | Beta testing, feature previews |
+| **Archive** | Archived packages that are no longer maintained | Deprecated or unmaintained software |
+| **Zillowe** | Zillowe's own official packages | Official Zillowe Foundation tools |
+
+### Tier Progression
+
+Packages typically start in the **Community** tier and can be promoted to higher tiers based on:
+
+- Quality and stability of the package definition
+- Popularity and usage metrics
+- Maintenance and update frequency
+- Security and compliance standards
+
+## Using Different Repositories
+
+### Adding a Repository
+
+You can add repositories from Zoidberg or any compatible Git-based registry:
+
+```sh
+# Add a repository interactively
+zoi repo add
+
+# Add by name from the default registry
+zoi repo add <repo_name>
+
+# Add from a Git repository URL
+zoi repo add https://github.com/<user>/<repo>.git
+```
+
+### Syncing Repositories
+
+Before installing packages, sync your repositories to get the latest package definitions:
+
+```sh
+# Sync all repositories
+zoi sync
+
+# Sync a specific repository
+zoi sync <repo_name>
+```
+
+Zoi supports parallel registry sync, meaning multiple repositories are synchronized concurrently for faster updates.
+
+### Listing Repositories
+
+View all configured repositories:
+
+```sh
+zoi repo list
+```
+
+### Removing a Repository
+
+```sh
+zoi repo remove <repo_name>
+```
+
+## Browsing Packages
+
+### Search for Packages
+
+Find packages across all configured repositories:
+
+```sh
+# Standard search
+zoi search <term>
+
+# Interactive TUI mode with rich metadata
+zoi search <term> -i
+```
+
+The interactive mode provides:
+- Result sorting and filtering
+- Rich package metadata display
+- Direct installation from search results
+
+### View Package Details
+
+Get detailed information about a specific package:
+
+```sh
+zoi show <package_name>
+```
+
+This displays:
+- Package description and version
+- Dependencies (runtime and build)
+- Installation size and requirements
+- Repository and tier information
+- Available versions
+
+### List All Packages
+
+View all available packages from configured repositories:
+
+```sh
+zoi list
+```
+
+## Package Namespacing
+
+Packages in Zoidberg use namespacing to prevent conflicts and identify sources:
+
+```sh
+# Install from the @zillowe namespace
+zoi install @zillowe/hello
+
+# Install from a specific repository
+zoi install @community/my-tool
+```
+
+## Security and Verification
+
+Zoidberg implements multiple security layers:
+
+### Chain of Trust
+
+Zoi verifies Git commit signatures for entire registries, establishing a chain of trust from the registry maintainers to your local installation.
+
+### Built-in PGP Keyring
+
+Zoi includes a built-in PGP keyring with trusted public keys, providing out-of-the-box security without manual key management.
+
+### Package Checksums
+
+Every package definition includes checksums to verify the integrity of downloaded binaries and archives:
+
+```lua
+-- Example package definition
+checksum = {
+  ["linux-amd64"] = "sha256:abc123...",
+  ["macos-arm64"] = "sha256:def456..."
+}
+```
+
+### GPG Signatures
+
+Packages can be signed with GPG signatures for additional verification of authenticity.
+
+## Creating a Custom Registry
+
+You can create your own package registry compatible with Zoi:
+
+1. **Create a Git repository** with the following structure:
+   ```
+   my-registry/
+   ├── packages/
+   │   ├── my-package/
+   │   │   └── my-package.pkg.lua
+   │   └── another-package/
+   │       └── another-package.pkg.lua
+   └── README.md
+   ```
+
+2. **Write package definitions** using Lua scripts (see [Packaging](/docs/zds/zoi/packaging) for details)
+
+3. **Add your registry to Zoi:**
+   ```sh
+   zoi repo add https://github.com/myuser/my-registry.git
+   ```
+
+4. **Sync and install:**
+   ```sh
+   zoi sync
+   zoi install @my-registry/my-package
+   ```
+
+## Contributing to Zoidberg
+
+Want to add packages to the official Zoidberg registry? See the [Contributing](/docs/zds/zoi/contributing) guide for:
+
+- Package submission guidelines
+- Quality standards and requirements
+- Review and approval process
+- Community tier promotion criteria
+
+## Related Resources
+
+- [Packaging Guide](/docs/zds/zoi/packaging) - Learn how to create package definitions
+- [Repositories Documentation](https://zillowe.qzz.io/docs/zds/zoi/repositories) - Detailed repository management
+- [Contributing Guide](/docs/zds/zoi/contributing) - Submit packages to Zoidberg
+- [Migration Guide](/docs/zds/zoi/migrate) - Import packages from other registries

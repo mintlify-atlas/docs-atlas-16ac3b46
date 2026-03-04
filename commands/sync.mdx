@@ -1,0 +1,352 @@
+---
+title: zoi sync
+description: Download and update the package database from remote registries
+---
+
+## Syntax
+
+```bash
+zoi sync [OPTIONS] [SUBCOMMAND]
+zoi sy [OPTIONS] [SUBCOMMAND]  # alias
+```
+
+## Description
+
+Synchronizes the local package database with remote registries. This command:
+- Clones or updates package registry repositories from Git
+- Builds searchable package databases from registry data
+- Optionally downloads and indexes file lists for global search
+- Detects installed package managers
+- Sets up shell completions for Zoi
+
+The package database is stored in `~/.zoi/pkgs/db/` and is required for package installation, search, and updates.
+
+## Options
+
+<ParamField path="-v, --verbose" type="boolean" default="false">
+  Show the full git output during sync operations. Useful for debugging connection issues.
+</ParamField>
+
+<ParamField path="--fallback" type="boolean" default="false">
+  If the default mirror fails, automatically try alternative mirrors. Useful when the primary registry is unavailable.
+</ParamField>
+
+<ParamField path="--no-pm" type="boolean" default="false">
+  Skip checking for installed package managers on the system.
+</ParamField>
+
+<ParamField path="--no-shell-setup" type="boolean" default="false">
+  Skip automatic shell completion setup after syncing.
+</ParamField>
+
+<ParamField path="-f, --files" type="boolean" default="false">
+  Download and index file lists for global search. This enables `zoi search --files` to find which packages provide specific files.
+  
+  **Note:** This significantly increases sync time and disk usage.
+</ParamField>
+
+<ParamField path="--offline" type="boolean" default="false" global>
+  Do not attempt to connect to the network (sync will skip).
+</ParamField>
+
+## Subcommands
+
+### sync add
+
+Add a new registry to the configuration.
+
+```bash
+zoi sync add <URL>
+```
+
+**Arguments:**
+- `url`: Git URL of the registry to add
+
+**Example:**
+```bash
+zoi sync add https://github.com/myorg/custom-registry.git
+```
+
+### sync remove
+
+Remove a configured registry by its handle.
+
+```bash
+zoi sync remove <HANDLE>
+```
+
+**Arguments:**
+- `handle`: Registry handle identifier
+
+**Example:**
+```bash
+zoi sync remove custom
+```
+
+### sync list
+
+List all configured registries.
+
+```bash
+zoi sync list
+zoi sync ls  # alias
+```
+
+**Output:**
+```
+--- Configured Registries ---
+[Set] zoidberg: https://gitlab.com/Zillowe/.../Zoidberg.git - Official Zoi Package Registry
+
+[Add] custom: https://github.com/myorg/registry.git - Custom packages
+```
+
+### sync set
+
+Set the default registry URL.
+
+```bash
+zoi sync set <URL>
+```
+
+**Arguments:**
+- `url`: Registry URL or keyword
+
+**Keywords:**
+- `default`: Use the default official registry
+- `gitlab`: Use GitLab mirror
+- `github`: Use GitHub mirror
+- `codeberg`: Use Codeberg mirror
+
+**Examples:**
+```bash
+# Use default
+zoi sync set default
+
+# Use GitHub mirror
+zoi sync set github
+
+# Use custom URL
+zoi sync set https://custom.example.com/registry.git
+```
+
+## Examples
+
+<CodeGroup>
+```bash Basic sync
+# First time setup
+zoi sync
+
+# Update package database
+zoi sync
+
+# Using alias
+zoi sy
+```
+
+```bash Verbose sync
+# Show git output
+zoi sync --verbose
+
+# Useful for debugging
+zoi sync -v
+```
+
+```bash Sync with file indexing
+# Download and index file lists
+zoi sync --files
+
+# Enables:
+zoi search --files libssl.so
+```
+
+```bash Fallback mirrors
+# Try alternative mirrors if default fails
+zoi sync --fallback
+```
+
+```bash Skip post-sync tasks
+# Skip shell completion setup
+zoi sync --no-shell-setup
+
+# Skip package manager detection
+zoi sync --no-pm
+
+# Skip both
+zoi sync --no-shell-setup --no-pm
+```
+
+```bash Registry management
+# List configured registries
+zoi sync list
+
+# Add custom registry
+zoi sync add https://github.com/myorg/packages.git
+
+# Remove registry
+zoi sync remove custom
+
+# Change default registry
+zoi sync set github
+```
+</CodeGroup>
+
+## Sync Process
+
+### First Sync
+
+```bash
+$ zoi sync
+
+--- Syncing Package Databases ---
+Cloning package database from remote...
+remote: Enumerating objects: 12534, done.
+remote: Counting objects: 100% (12534/12534), done.
+remote: Compressing objects: 100% (4521/4521), done.
+Receiving objects: 100% (12534/12534), 25.3 MiB | 8.5 MiB/s, done.
+Resolving deltas: 100% (7832/7832), done.
+
+Building package database...
+Indexed 1,247 packages from registry 'zoidberg'
+
+Sync complete.
+
+--- Setting up shell completions ---
+Detected shell: bash
+Installing bash completions to ~/.local/share/bash-completion/completions/
+Shell completions installed successfully.
+```
+
+### Subsequent Syncs
+
+```bash
+$ zoi sync
+
+--- Syncing Package Databases ---
+Updating package database...
+remote: Enumerating objects: 47, done.
+remote: Counting objects: 100% (47/47), done.
+remote: Compressing objects: 100% (15/15), done.
+Receiving objects: 100% (25/25), 8.3 KiB | 8.3 MiB/s, done.
+Resolving deltas: 100% (12/12), done.
+
+Updated packages: 15 new, 8 modified
+
+Sync complete.
+```
+
+## Registry Configuration
+
+Registries are configured in `~/.zoi/config.toml`:
+
+```toml
+[default_registry]
+handle = "zoidberg"
+url = "https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg.git"
+
+[[added_registries]]
+handle = "custom"
+url = "https://github.com/myorg/registry.git"
+```
+
+## Database Location
+
+Package databases are stored per registry:
+
+```
+~/.zoi/
+├── pkgs/
+│   └── db/
+│       ├── zoidberg/        # Default registry
+│       │   ├── main/        # Repository
+│       │   ├── extra/
+│       │   └── packages.db  # SQLite database
+│       └── custom/          # Additional registry
+│           └── ...
+```
+
+## File Indexing
+
+With `--files` flag:
+
+```bash
+zoi sync --files
+```
+
+**Storage:**
+- Downloads `.files.json.zst` from each repository
+- Indexes file paths in SQLite database
+- Enables `zoi search --files` functionality
+
+**Disk Usage:**
+- Without files: ~50-100 MB per registry
+- With files: ~200-500 MB per registry (varies by registry size)
+
+## Shell Completions
+
+By default, `sync` sets up completions for the detected shell:
+
+**Supported Shells:**
+- bash
+- zsh
+- fish
+- powershell
+- elvish
+
+**Skip Setup:**
+```bash
+zoi sync --no-shell-setup
+```
+
+**Manual Setup:**
+```bash
+zoi shell bash  # Or: zsh, fish, etc.
+```
+
+## Exit Codes
+
+- `0`: Sync completed successfully
+- `1`: Failed to clone/update registry
+- `1`: Network error
+- `1`: Invalid repository URL
+- `0`: Skipped due to `--offline`
+
+## Error Handling
+
+### Network Errors
+
+```bash
+$ zoi sync
+Error: Failed to clone registry: Could not resolve host
+
+# Use fallback mirrors
+zoi sync --fallback
+
+# Or work offline
+zoi --offline install package  # Uses cached database
+```
+
+### Git Authentication
+
+For private registries:
+
+```bash
+# Use SSH URLs
+zoi sync add git@github.com:myorg/private-registry.git
+
+# Ensure SSH key is configured
+ssh -T git@github.com
+```
+
+## Performance Tips
+
+1. **Sync Regularly**: Run daily or before installing packages
+2. **Skip Files Initially**: Use `--files` only when needed for file search
+3. **Use Mirrors**: Configure fastest mirror as default
+4. **Offline Mode**: Use `--offline` when working without network
+
+## Related Commands
+
+- [zoi search](/docs/zds/zoi/commands/search) - Search package database
+- [zoi install](/docs/zds/zoi/commands/install) - Install packages
+- [zoi update](/docs/zds/zoi/commands/update) - Update packages
+- [zoi list](/docs/zds/zoi/commands/all-commands#list) - List packages

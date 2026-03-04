@@ -1,0 +1,280 @@
+---
+title: Installation
+description: Install Zoi on Linux, macOS, or Windows using package managers or installer scripts
+---
+
+You can install Zoi using a package manager, an installer script, or by building it from source.
+
+## Quick Install Scripts
+
+The fastest way to get started is with our installer scripts:
+
+<CodeGroup>
+```bash Linux / macOS
+curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+```
+
+```powershell Windows
+powershell -c "irm zillowe.pages.dev/scripts/zoi/install.ps1|iex"
+```
+</CodeGroup>
+
+<Note>
+  The installer scripts automatically detect your platform and install the latest version of Zoi.
+</Note>
+
+## Package Managers
+
+Choose the installation method that matches your operating system and package manager.
+
+### Linux
+
+<Tabs>
+  <Tab title="Arch Linux (AUR)">
+    Install [`zoi-bin`](https://aur.archlinux.org/packages/zoi-bin) (pre-compiled binary) or [`zoi`](https://aur.archlinux.org/packages/zoi) (built from source) from the AUR:
+
+    <CodeGroup>
+    ```bash Using an AUR helper (yay)
+    yay -S zoi-bin
+    ```
+
+    ```bash Using an AUR helper (paru)
+    paru -S zoi-bin
+    ```
+
+    ```bash Manual installation
+    git clone https://aur.archlinux.org/zoi-bin.git
+    cd zoi-bin
+    makepkg -si
+    ```
+    </CodeGroup>
+
+    <Tip>
+      Use `zoi-bin` for a pre-compiled binary or `zoi` to build from source. The binary version installs faster.
+    </Tip>
+  </Tab>
+
+  <Tab title="Fedora">
+    Install `zoi-rs` from the [Terra](https://terra.fyralabs.com) repository:
+
+    ```bash
+    # Add Terra repository
+    dnf install --nogpgcheck --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' terra-release
+
+    # Install Zoi
+    sudo dnf install zoi-rs
+    ```
+
+    <Note>
+      This package is maintained by the Terra team and may receive updates later than official releases.
+    </Note>
+
+    For more information about Terra, see the [Terra documentation](https://developer.fyralabs.com/terra/installing).
+  </Tab>
+</Tabs>
+
+### macOS
+
+<Tabs>
+  <Tab title="Homebrew">
+    Install Zoi using Homebrew:
+
+    ```bash
+    brew install Zillowe/tap/zoi
+    ```
+
+    <Tip>
+      Homebrew works on both Intel and Apple Silicon Macs. It also supports Linux.
+    </Tip>
+  </Tab>
+</Tabs>
+
+### Windows
+
+<Tabs>
+  <Tab title="Scoop">
+    Install Zoi using Scoop:
+
+    ```powershell
+    scoop bucket add zillowe https://github.com/Zillowe/scoop.git
+    scoop install zoi
+    ```
+  </Tab>
+</Tabs>
+
+### Cross-Platform Package Managers
+
+<Tabs>
+  <Tab title="Cargo (Rust)">
+    Install from [crates.io](https://crates.io/crates/zoi-rs) using `cargo`:
+
+    ```bash
+    cargo install zoi-rs
+    ```
+
+    <Note>
+      Requires Rust 1.88.0 or later. This builds Zoi from source.
+    </Note>
+  </Tab>
+
+  <Tab title="NPM">
+    Install the NPM wrapper for Zoi:
+
+    <CodeGroup>
+    ```bash npx
+    npx @zillowe/zoi
+    ```
+
+    ```bash bunx
+    bunx @zillowe/zoi
+    ```
+
+    ```bash pnpm dlx
+    pnpm dlx @zillowe/zoi
+    ```
+
+    ```bash yarn dlx
+    yarn dlx @zillowe/zoi
+    ```
+    </CodeGroup>
+
+    <Warning>
+      This downloads and runs Zoi without installing it globally. Use a package manager for permanent installation.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Build from Source
+
+If you prefer to build Zoi from source, you'll need [Rust](https://www.rust-lang.org) installed.
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/Zillowe/Zoi.git
+    cd Zoi
+    ```
+  </Step>
+
+  <Step title="Build the Release Binary">
+    Use the provided build script for your platform:
+
+    <CodeGroup>
+    ```bash Linux / macOS
+    ./scripts/build-release.sh
+    ```
+
+    ```powershell Windows
+    .\scripts\build-release.ps1
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Install Locally">
+    Run the installation script:
+
+    ```bash
+    ./configure
+    make build
+    sudo make install
+    ```
+
+    Optionally, set up CLI completions and add Zoi to your PATH:
+
+    ```bash
+    make setup
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  Building from source requires Rust 1.88.0 or later.
+</Note>
+
+## Verify Installation
+
+After installation, verify that Zoi is correctly installed:
+
+```bash
+zoi --version
+```
+
+<Accordion title="Example output">
+  ```
+  Zoi v1.7.0
+  Branch: Production
+  Status: Release
+  Commit: abc1234
+  ```
+</Accordion>
+
+You can also check system information:
+
+```bash
+zoi info
+```
+
+This displays your operating system, architecture, and available package managers.
+
+## Update PATH
+
+Zoi installs binaries to `~/.zoi/pkgs/bin`. Ensure this directory is in your PATH:
+
+<CodeGroup>
+```bash Bash (~/.bashrc)
+export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+```
+
+```bash Zsh (~/.zshrc)
+export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+```
+
+```bash Fish (~/.config/fish/config.fish)
+set -gx PATH $HOME/.zoi/pkgs/bin $PATH
+```
+
+```powershell PowerShell (Profile)
+$env:PATH = "$env:USERPROFILE\.zoi\pkgs\bin;$env:PATH"
+```
+</CodeGroup>
+
+<Tip>
+  Run `zoi shell <your-shell>` to automatically set up shell completions and PATH configuration.
+</Tip>
+
+## Shell Completions
+
+Enable tab completions for your shell:
+
+<CodeGroup>
+```bash Bash
+zoi shell bash
+```
+
+```bash Zsh
+zoi shell zsh
+```
+
+```bash Fish
+zoi shell fish
+```
+
+```powershell PowerShell
+zoi shell powershell
+```
+</CodeGroup>
+
+This installs completion scripts to the appropriate location for your shell.
+
+## Next Steps
+
+Now that Zoi is installed, continue to the [Quickstart](/quickstart) to sync repositories and install your first package.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get from installation to your first package install
+  </Card>
+  <Card title="Command Reference" icon="terminal" href="/commands/all-commands">
+    Explore all available CLI commands
+  </Card>
+</CardGroup>

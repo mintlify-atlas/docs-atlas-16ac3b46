@@ -1,0 +1,228 @@
+---
+title: zoi install
+description: Install packages from registries, local files, URLs, or git repositories
+---
+
+## Syntax
+
+```bash
+zoi install [OPTIONS] [SOURCES]...
+zoi i [OPTIONS] [SOURCES]...  # alias
+```
+
+## Description
+
+Installs one or more packages from various sources:
+- **Registry packages**: `@repo/package-name` or `#handle@repo/package-name`
+- **Local files**: Path to `.pkg.tar.zst` archive or `pkg.lua` file
+- **Git repositories**: Using `--repo` flag
+- **URLs**: Direct download links to package archives
+- **Project dependencies**: Run without arguments in a project with `zoi.yaml`
+
+The command resolves dependencies, checks for conflicts, and installs packages with proper transactional handling. If the installation fails, changes are rolled back automatically.
+
+## Options
+
+<ParamField path="sources" type="string[]">
+  Package sources to install. Can be package names, file paths, or URLs.
+  
+  **Examples:**
+  - `nodejs` - Install from default registry
+  - `@extra/redis` - Install from specific repo
+  - `#zoidberg@main/python` - Install from specific registry and repo
+  - `./package.pkg.tar.zst` - Install from local file
+  - `package:sub1,sub2` - Install specific sub-packages
+</ParamField>
+
+<ParamField path="--repo" type="string">
+  Install from a git repository.
+  
+  **Format:**
+  - `Zillowe/Hello` - GitHub repository (default)
+  - `gl:Zillowe/Hello` - GitLab repository
+  - `gh:user/repo` - Explicit GitHub
+  
+  Conflicts with `sources` argument.
+</ParamField>
+
+<ParamField path="--force" type="boolean" default="false">
+  Force re-installation even if the package is already installed. Useful for:
+  - Repairing corrupted installations
+  - Reinstalling after manual modifications
+  - Testing package builds
+</ParamField>
+
+<ParamField path="--all-optional" type="boolean" default="false">
+  Accept and install all optional dependencies without prompting. By default, optional dependencies are presented interactively.
+</ParamField>
+
+<ParamField path="--scope" type="enum" values="[user, system, project]">
+  The installation scope:
+  - `user`: Install to `~/.zoi/store/user/` (default)
+  - `system`: Install to `/opt/zoi/store/system/` (requires root)
+  - `project`: Install to `.zoi/store/` in current directory
+  
+  Conflicts with `--local` and `--global`.
+</ParamField>
+
+<ParamField path="--local" type="boolean" default="false">
+  Install to the current project (alias for `--scope=project`). Creates `.zoi/store/` in the current directory.
+  
+  Conflicts with `--global`.
+</ParamField>
+
+<ParamField path="--global" type="boolean" default="false">
+  Install globally for the current user (alias for `--scope=user`).
+</ParamField>
+
+<ParamField path="--save" type="boolean" default="false">
+  Save the package to the project's `zoi.yaml` file. Only works with project-scoped installations.
+</ParamField>
+
+<ParamField path="--type" type="string">
+  The type of package to build if building from source.
+  
+  **Common values:**
+  - `source` - Build from source code
+  - `pre-compiled` - Use pre-built binaries
+  - Package-specific types defined in `pkg.lua`
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean" default="false">
+  Show what would be installed without actually performing the installation. Useful for:
+  - Previewing dependency resolution
+  - Checking disk space requirements
+  - Verifying package sources
+</ParamField>
+
+<ParamField path="-y, --yes" type="boolean" default="false" global>
+  Automatically answer yes to all prompts, including:
+  - Installation confirmation
+  - File conflict resolution
+  - Optional dependency selection
+</ParamField>
+
+<ParamField path="-r, --root" type="path" global>
+  Operate on a different root directory instead of the default system root.
+</ParamField>
+
+<ParamField path="--offline" type="boolean" default="false" global>
+  Do not attempt to connect to the network. Only use cached packages and local sources.
+</ParamField>
+
+<ParamField path="--pkg-dir" type="path[]" global>
+  Additional directories to search for `.pkg.tar.zst` archives.
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+```bash Install a single package
+# Install from default registry
+zoi install nodejs
+
+# Install from specific repository
+zoi install @extra/redis
+
+# Install from specific registry
+zoi install #zoidberg@main/python
+```
+
+```bash Install multiple packages
+zoi install nodejs npm yarn
+
+# Install with specific sub-packages
+zoi install gcc:base,libs python:dev
+```
+
+```bash Install from local file
+# Install from local archive
+zoi install ./package-1.0.0.pkg.tar.zst
+
+# Install from multiple local files
+zoi install ./pkg1.pkg.tar.zst ./pkg2.pkg.tar.zst
+```
+
+```bash Install from git repository
+# Install from GitHub
+zoi install --repo Zillowe/Hello
+
+# Install from GitLab
+zoi install --repo gl:username/project
+```
+
+```bash Project installations
+# Install to project (creates .zoi/store/)
+zoi install --local nodejs
+
+# Install and save to zoi.yaml
+zoi install --local --save react
+
+# Install all dependencies from zoi.yaml
+cd my-project
+zoi install
+```
+
+```bash Advanced options
+# Force reinstall with all optional dependencies
+zoi install --force --all-optional gcc
+
+# Dry run to preview changes
+zoi install --dry-run nodejs npm
+
+# Install with automatic yes to all prompts
+zoi install -y nodejs
+
+# Install from additional package directory
+zoi install --pkg-dir /mnt/cache nodejs
+```
+</CodeGroup>
+
+## Installation Process
+
+1. **Dependency Resolution**: Analyzes package dependencies and creates installation plan
+2. **Conflict Checking**: Verifies no file conflicts with existing packages
+3. **Disk Space Check**: Ensures sufficient space for installation
+4. **Confirmation**: Prompts for user confirmation (unless `-y` specified)
+5. **Download**: Downloads required packages (with progress indicators)
+6. **Installation**: Installs packages in dependency order
+7. **Symlink Creation**: Creates symlinks in bin directory
+8. **Transaction Commit**: Records installation in transaction log
+9. **Hooks**: Runs post-install hooks if defined
+
+## Exit Codes
+
+- `0`: Installation completed successfully
+- `1`: Installation failed (changes rolled back)
+- `1`: Package not found or invalid source
+- `1`: Dependency resolution failed
+- `1`: Insufficient disk space
+- `1`: File conflicts detected
+
+## Project Mode
+
+When run without arguments in a directory with `zoi.yaml`:
+
+```yaml
+# zoi.yaml
+name: my-project
+local: true
+pkgs:
+  - nodejs
+  - npm
+```
+
+```bash
+# Installs nodejs and npm to .zoi/store/
+zoi install
+```
+
+Creates `zoi.lock` file for reproducible installations.
+
+## Related Commands
+
+- [zoi uninstall](/docs/zds/zoi/commands/uninstall) - Remove installed packages
+- [zoi update](/docs/zds/zoi/commands/update) - Update packages to latest versions
+- [zoi search](/docs/zds/zoi/commands/search) - Search for available packages
+- [zoi dev](/docs/zds/zoi/commands/dev) - Enter project development shell
+- [zoi exec](/docs/zds/zoi/commands/exec) - Execute package without installing

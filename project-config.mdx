@@ -1,0 +1,481 @@
+---
+title: Project Configuration
+description: Managing project-specific commands and environments with zoi.yaml.
+---
+
+Zoi can manage project-specific commands and environments using a local `zoi.yaml` file in your project directory. This enables you to define custom workflows, automate tasks, and ensure consistent development environments across your team.
+
+## The `zoi.yaml` File
+
+Place a `zoi.yaml` file in the root of your project to define commands and environments:
+
+```yaml
+name: "My Project"
+
+commands:
+  - cmd: "build"
+    run: "cargo build --release"
+  - cmd: "test"
+    run: "cargo test --all-features"
+  - cmd: "lint"
+    run: "cargo clippy --all-targets --fix"
+
+environments:
+  - name: "CI Pipeline"
+    cmd: "ci"
+    run:
+      - "zoi run lint"
+      - "zoi run test"
+      - "zoi run build"
+```
+
+Once defined, run commands with:
+
+```sh
+zoi run build
+zoi run test
+zoi env ci
+```
+
+## File Structure
+
+The `zoi.yaml` file has two main sections:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | (Optional) Human-readable project name |
+| `commands` | `list` | List of simple command aliases |
+| `environments` | `list` | List of multi-step workflows |
+
+## Commands
+
+The `commands` section defines simple command aliases that map a short name to a shell command.
+
+### Schema
+
+```yaml
+commands:
+  - cmd: "<alias>"      # Short command name
+    run: "<command>"    # Shell command to execute
+```
+
+### Real Example from Zoi's Source
+
+From `zoi.yaml` in the Zoi repository:
+
+```yaml
+commands:
+  - cmd: "build"
+    run: "rm -rf scripts/compiled && ./scripts/build.sh"
+  - cmd: "lines"
+    run: "cloc src build.rs"
+  - cmd: "install"
+    run: "cargo clean && ./configure && make && sudo make install && make install-completions"
+  - cmd: "deps"
+    run: "cargo machete"
+  - cmd: "fmt"
+    run: "cargo fmt --all"
+  - cmd: "lint"
+    run: "cargo clippy --all-targets --fix --allow-dirty --allow-staged"
+  - cmd: "check"
+    run: "cargo check"
+  - cmd: "test"
+    run: "cargo test --all-features"
+```
+
+### Running Commands
+
+```sh
+# Run a single command
+zoi run build
+zoi run test
+zoi run fmt
+
+# Commands run in the directory containing zoi.yaml
+zoi run install
+```
+
+<Note>
+  Commands are executed as shell commands, so you can use pipes, redirects, and other shell features.
+</Note>
+
+## Environments
+
+The `environments` section defines multi-step workflows that execute multiple commands in sequence.
+
+### Schema
+
+```yaml
+environments:
+  - name: "<description>"  # Human-readable name
+    cmd: "<alias>"         # Short environment name
+    run:                   # List of commands to run
+      - "<command1>"
+      - "<command2>"
+      - "<command3>"
+```
+
+### Real Example from Zoi's Source
+
+From `zoi.yaml` in the Zoi repository:
+
+```yaml
+environments:
+  - name: "Prepare"
+    cmd: "pre"
+    run:
+      - "zoi run deps"
+      - "zoi run lint"
+      - "zoi run fmt"
+      - "zoi run check"
+      - "zoi run test"
+```
+
+This environment runs a complete pre-commit workflow:
+1. Check for unused dependencies
+2. Run linter with auto-fix
+3. Format code
+4. Check for compilation errors
+5. Run all tests
+
+### Running Environments
+
+```sh
+# Run the entire environment
+zoi env pre
+
+# Equivalent to running:
+# zoi run deps
+# zoi run lint
+# zoi run fmt
+# zoi run check
+# zoi run test
+```
+
+<Callout type="info">
+  Environments run commands sequentially. If any command fails, the environment stops executing.
+</Callout>
+
+## Command Composition
+
+You can compose commands by referencing other commands defined in the same `zoi.yaml`:
+
+```yaml
+commands:
+  - cmd: "deps"
+    run: "cargo machete"
+  - cmd: "lint"
+    run: "cargo clippy --all-targets --fix"
+  - cmd: "test"
+    run: "cargo test --all-features"
+
+environments:
+  - name: "Full Check"
+    cmd: "check-all"
+    run:
+      - "zoi run deps"    # Runs the 'deps' command
+      - "zoi run lint"    # Runs the 'lint' command
+      - "zoi run test"    # Runs the 'test' command
+```
+
+This approach makes workflows more maintainable and reusable.
+
+## Common Use Cases
+
+### Development Workflow
+
+```yaml
+name: "Web Application"
+
+commands:
+  - cmd: "dev"
+    run: "npm run dev"
+  - cmd: "build"
+    run: "npm run build"
+  - cmd: "test"
+    run: "npm test"
+  - cmd: "lint"
+    run: "npm run lint"
+  - cmd: "format"
+    run: "npm run format"
+
+environments:
+  - name: "Development Server"
+    cmd: "start"
+    run:
+      - "zoi run install-deps"
+      - "zoi run dev"
+  
+  - name: "Pre-commit"
+    cmd: "pre"
+    run:
+      - "zoi run format"
+      - "zoi run lint"
+      - "zoi run test"
+```
+
+### CI/CD Pipeline
+
+```yaml
+name: "CI Pipeline"
+
+commands:
+  - cmd: "install-deps"
+    run: "npm ci"
+  - cmd: "type-check"
+    run: "tsc --noEmit"
+  - cmd: "unit-test"
+    run: "jest --coverage"
+  - cmd: "e2e-test"
+    run: "playwright test"
+  - cmd: "build-prod"
+    run: "npm run build -- --mode production"
+
+environments:
+  - name: "Continuous Integration"
+    cmd: "ci"
+    run:
+      - "zoi run install-deps"
+      - "zoi run type-check"
+      - "zoi run lint"
+      - "zoi run unit-test"
+      - "zoi run e2e-test"
+      - "zoi run build-prod"
+```
+
+### Multi-Language Project
+
+```yaml
+name: "Full Stack Application"
+
+commands:
+  # Frontend commands
+  - cmd: "frontend-install"
+    run: "cd frontend && npm install"
+  - cmd: "frontend-dev"
+    run: "cd frontend && npm run dev"
+  - cmd: "frontend-build"
+    run: "cd frontend && npm run build"
+  
+  # Backend commands
+  - cmd: "backend-install"
+    run: "cd backend && cargo build"
+  - cmd: "backend-dev"
+    run: "cd backend && cargo run"
+  - cmd: "backend-test"
+    run: "cd backend && cargo test"
+  
+  # Database commands
+  - cmd: "db-migrate"
+    run: "cd backend && sqlx migrate run"
+  - cmd: "db-reset"
+    run: "cd backend && sqlx database reset -y"
+
+environments:
+  - name: "Setup Development Environment"
+    cmd: "setup"
+    run:
+      - "zoi run frontend-install"
+      - "zoi run backend-install"
+      - "zoi run db-migrate"
+  
+  - name: "Run Full Stack"
+    cmd: "dev"
+    run:
+      - "zoi run backend-dev &"
+      - "zoi run frontend-dev"
+```
+
+## How Zoi Uses Project Config
+
+When you run `zoi run <cmd>` or `zoi env <cmd>`, Zoi:
+
+1. **Searches for `zoi.yaml`**: Starts in the current directory and walks up the tree
+2. **Parses the file**: Validates the YAML structure
+3. **Finds the command**: Looks for the matching `cmd` in `commands` or `environments`
+4. **Executes**: Runs the shell command(s) in the directory containing `zoi.yaml`
+
+### Working Directory
+
+All commands run with the directory containing `zoi.yaml` as the working directory. This ensures consistent behavior regardless of where you invoke `zoi run`.
+
+```sh
+# These are equivalent (if zoi.yaml is in project root):
+cd /path/to/project
+zoi run build
+
+cd /path/to/project/src/subdir
+zoi run build  # Still runs in /path/to/project
+```
+
+## Project-Specific Packages with `zoi.lock`
+
+Zoi supports a `zoi.lock` file for project-specific package installations. This creates reproducible environments:
+
+```sh
+# Install packages for current project (creates zoi.lock)
+zoi install --scope project package-name
+
+# Install all packages from zoi.lock
+zoi install --scope project
+```
+
+The `zoi.lock` file tracks:
+- Installed package versions
+- Registry sources
+- Dependency choices
+- Installation metadata
+
+See the [Lockfile documentation](/docs/zds/zoi/lockfile) for more details.
+
+## Combining with Git Repositories
+
+You can use `zoi.yaml` in a git repository to define how the repository's package should be installed:
+
+```yaml
+name: "My Custom Tool"
+package: "tool.pkg.lua"  # Points to the package definition
+
+commands:
+  - cmd: "build"
+    run: "cargo build --release"
+  - cmd: "test"
+    run: "cargo test"
+```
+
+Then install directly from the repository:
+
+```sh
+zoi install --repo username/repo-name
+```
+
+See [Repositories](/docs/zds/zoi/repositories#direct-git-repository-installation) for more information.
+
+## Complete Example
+
+Here's the complete `zoi.yaml` from the Zoi source repository:
+
+```yaml
+name: "Zoi"
+
+commands:
+  - cmd: "build"
+    run: "rm -rf scripts/compiled && ./scripts/build.sh"
+  - cmd: "lines"
+    run: "cloc src build.rs"
+  - cmd: "install"
+    run: "cargo clean && ./configure && make && sudo make install && make install-completions"
+  - cmd: "deps"
+    run: "cargo machete"
+  - cmd: "fmt"
+    run: "cargo fmt --all"
+  - cmd: "lint"
+    run: "cargo clippy --all-targets --fix --allow-dirty --allow-staged"
+  - cmd: "check"
+    run: "cargo check"
+  - cmd: "test"
+    run: "cargo test --all-features"
+
+environments:
+  - name: "Prepare"
+    cmd: "pre"
+    run:
+      - "zoi run deps"
+      - "zoi run lint"
+      - "zoi run fmt"
+      - "zoi run check"
+      - "zoi run test"
+```
+
+This demonstrates:
+- Multiple single-purpose commands for common development tasks
+- A composite environment that runs a complete pre-commit workflow
+- Shell commands with pipes and arguments
+- Using `zoi run` within environment definitions
+
+## Tips and Best Practices
+
+### Use Descriptive Command Names
+
+```yaml
+# Good
+commands:
+  - cmd: "test-unit"
+    run: "cargo test --lib"
+  - cmd: "test-integration"
+    run: "cargo test --test '*'"
+
+# Not as clear
+commands:
+  - cmd: "t1"
+    run: "cargo test --lib"
+  - cmd: "t2"
+    run: "cargo test --test '*'"
+```
+
+### Keep Commands Focused
+
+Each command should do one thing well. Use environments to compose them:
+
+```yaml
+commands:
+  - cmd: "lint"
+    run: "cargo clippy"
+  - cmd: "format"
+    run: "cargo fmt"
+  - cmd: "test"
+    run: "cargo test"
+
+environments:
+  - name: "Quality Check"
+    cmd: "qa"
+    run:
+      - "zoi run lint"
+      - "zoi run format"
+      - "zoi run test"
+```
+
+### Document Complex Commands
+
+Use the environment `name` field to explain what the workflow does:
+
+```yaml
+environments:
+  - name: "Full CI Pipeline - Lint, Test, Build, Deploy"
+    cmd: "ci-full"
+    run:
+      - "zoi run lint"
+      - "zoi run test"
+      - "zoi run build-prod"
+      - "zoi run deploy-staging"
+```
+
+### Error Handling
+
+Environments stop on first failure by default. For commands that should continue on error, use shell operators:
+
+```yaml
+commands:
+  - cmd: "cleanup"
+    run: "rm -rf dist || true"  # Continue even if dist doesn't exist
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Lockfile" icon="lock" href="/docs/zds/zoi/lockfile">
+    Learn about project-specific package locking
+  </Card>
+  
+  <Card title="Creating Packages" icon="hammer" href="/docs/zds/zoi/creating-packages">
+    Create packages with zoi.yaml integration
+  </Card>
+  
+  <Card title="CLI Reference" icon="terminal" href="/docs/zds/zoi/cli">
+    Full reference for zoi run and zoi env commands
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/docs/zds/zoi/config">
+    Configure Zoi's global settings
+  </Card>
+</CardGroup>

@@ -1,0 +1,499 @@
+---
+title: "Windows Support"
+description: "Use Zoi on Windows with platform-specific considerations"
+---
+
+Zoi provides first-class support for Windows, enabling cross-platform package management and development workflows on Windows 10/11.
+
+## Installation on Windows
+
+### PowerShell Installer (Recommended)
+
+Install Zoi using the PowerShell script:
+
+```powershell
+powershell -c "irm zillowe.pages.dev/scripts/zoi/install.ps1|iex"
+```
+
+This automatically:
+
+- Downloads the latest Zoi binary for Windows
+- Installs to `C:\Users\<username>\.zoi\`
+- Adds Zoi to your PATH
+- Configures PowerShell for Zoi usage
+
+### Manual Installation
+
+<Steps>
+  <Step title="Download Zoi for Windows">
+    Get the latest release from [GitHub Releases](https://github.com/Zillowe/Zoi/releases):
+
+    ```
+    zoi-<version>-windows-amd64.zip
+    ```
+  </Step>
+
+  <Step title="Extract the archive">
+    Extract to `C:\Users\<username>\.zoi\pkgs\bin\`:
+
+    ```powershell
+    Expand-Archive -Path zoi-<version>-windows-amd64.zip -DestinationPath $env:USERPROFILE\.zoi\pkgs\bin\
+    ```
+  </Step>
+
+  <Step title="Add Zoi to PATH">
+    Add `%USERPROFILE%\.zoi\pkgs\bin` to your user PATH:
+
+    ```powershell
+    $path = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    [Environment]::SetEnvironmentVariable('PATH', "$path;$env:USERPROFILE\.zoi\pkgs\bin", 'User')
+    ```
+
+    Restart your terminal for changes to take effect.
+  </Step>
+
+  <Step title="Verify installation">
+    ```powershell
+    zoi --version
+    ```
+  </Step>
+</Steps>
+
+### Chocolatey
+
+Install via Chocolatey (if available):
+
+```powershell
+choco install zoi
+```
+
+### Scoop
+
+Install via Scoop (if available):
+
+```powershell
+scoop install zoi
+```
+
+## Shell Integration
+
+### PowerShell
+
+Zoi works best with PowerShell 7+ (recommended) or Windows PowerShell 5.1.
+
+**Install PowerShell 7:**
+
+```powershell
+winget install Microsoft.PowerShell
+```
+
+**Zoi automatically configures PowerShell** during installation by adding to your profile (`$PROFILE`).
+
+Manually configure:
+
+```powershell
+# Add to $PROFILE (e.g., Documents\PowerShell\Microsoft.PowerShell_profile.ps1)
+$env:PATH = "$env:USERPROFILE\.zoi\pkgs\bin;" + $env:PATH
+```
+
+### Windows Terminal
+
+Use [Windows Terminal](https://aka.ms/terminal) for the best experience:
+
+- **Tabs**: Multiple sessions in one window
+- **Unicode support**: Proper rendering of icons and symbols
+- **GPU acceleration**: Smooth rendering
+
+Install:
+
+```powershell
+winget install Microsoft.WindowsTerminal
+```
+
+### CMD (Command Prompt)
+
+Zoi works in CMD but PowerShell is recommended for better scripting and Unicode support.
+
+Add Zoi to PATH permanently:
+
+```cmd
+setx PATH "%PATH%;%USERPROFILE%\.zoi\pkgs\bin"
+```
+
+### Git Bash / MSYS2 / WSL
+
+- **Git Bash/MSYS2**: Zoi works but uses Windows paths
+- **WSL (Windows Subsystem for Linux)**: Install the Linux version of Zoi inside WSL for native Linux packages
+
+## Windows-Specific Considerations
+
+### File Paths
+
+Zoi uses Windows-style paths on Windows:
+
+```powershell
+# Zoi data directory
+C:\Users\<username>\.zoi\
+
+# Installed packages
+C:\Users\<username>\.zoi\pkgs\store\
+
+# Binaries
+C:\Users\<username>\.zoi\pkgs\bin\
+```
+
+In `.pkg.lua` files, use forward slashes or double backslashes:
+
+```lua
+-- Good
+ZCP("bin/myapp.exe", "${usrroot}/bin/")
+
+-- Also good
+ZCP("bin\\myapp.exe", "${usrroot}\\bin\\")
+```
+
+### Executables
+
+Windows executables must have `.exe`, `.bat`, or `.cmd` extensions:
+
+```lua example.pkg.lua
+metadata {
+  bins = { "myapp.exe", "helper.bat" }
+}
+
+function package(args)
+  ZCP("build/myapp.exe", "${usrroot}/bin/")
+  ZCP("scripts/helper.bat", "${usrroot}/bin/")
+end
+```
+
+### PowerShell Scripts
+
+For PowerShell scripts, use `.ps1` extension:
+
+```lua
+ZCP("scripts/setup.ps1", "${usrroot}/bin/")
+```
+
+Users may need to set execution policy:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+### Line Endings
+
+Windows uses CRLF (`\r\n`) line endings. Zoi handles this automatically but be aware when creating cross-platform packages.
+
+### Symlinks
+
+Creating symlinks on Windows requires administrator privileges or Developer Mode. Zoi uses hard links or copies instead when symlinks aren't available.
+
+**Enable Developer Mode** to allow symlinks without admin:
+
+1. Open **Settings** > **Update & Security** > **For developers**
+2. Enable **Developer Mode**
+
+### Case Sensitivity
+
+Windows filesystems are case-insensitive by default. Package names and filenames should account for this.
+
+### Antivirus and Windows Defender
+
+Some antivirus software may flag Zoi binaries or downloaded packages. Add exceptions:
+
+```powershell
+# Add Zoi directory to Windows Defender exclusions (requires admin)
+Add-MpPreference -ExclusionPath "$env:USERPROFILE\.zoi"
+```
+
+## Platform-Specific Package Hooks
+
+Use Windows-specific hooks in `.pkg.lua` files:
+
+```lua
+hooks {
+  post_install = {
+    ["windows-amd64"] = {
+      "myapp.exe --install",
+      "sc.exe create MyApp binPath=C:\\myapp\\bin\\myapp.exe"
+    },
+    default = {
+      "echo 'MyApp installed'"
+    }
+  }
+}
+```
+
+### PowerShell in Hooks
+
+Hooks on Windows execute via PowerShell:
+
+```lua
+hooks {
+  post_install = {
+    ["windows-amd64"] = {
+      "Write-Host 'Installation complete' -ForegroundColor Green",
+      "New-Item -ItemType Directory -Path $env:APPDATA\\MyApp -Force"
+    }
+  }
+}
+```
+
+## Building Windows Packages
+
+Build Windows packages from any platform:
+
+```bash
+# Build for Windows from Linux/macOS
+zoi package build myapp.pkg.lua --type pre-compiled -p windows-amd64
+```
+
+### Cross-Compilation
+
+Zoi supports cross-compilation for Windows targets using MinGW or Rust cross-compilation:
+
+```lua myapp.pkg.lua
+function prepare(args)
+  if PLATFORM == "windows-amd64" then
+    -- Download Windows binaries
+    UTILS.FILE(
+      "https://example.com/releases/myapp-windows-x64.zip",
+      "myapp.zip"
+    )
+    UTILS.EXTRACT("myapp.zip", ".")
+  end
+end
+
+function package(args)
+  if PLATFORM == "windows-amd64" then
+    ZCP("myapp.exe", "${usrroot}/bin/")
+    ZCP("*.dll", "${usrroot}/bin/")
+  end
+end
+```
+
+## System vs User Scope
+
+### User Scope (Default)
+
+Packages install to user directories without requiring admin privileges:
+
+```powershell
+zoi install nodejs
+```
+
+**Install location:** `C:\Users\<username>\.zoi\pkgs\`
+
+### System Scope (Requires Admin)
+
+Install packages system-wide:
+
+```powershell
+# Run PowerShell as Administrator
+zoi install nodejs --scope system
+```
+
+**Install location:** `C:\ProgramData\zoi\pkgs\`
+
+<Warning>
+  System-scope installations require running PowerShell or Command Prompt as Administrator.
+</Warning>
+
+## Windows Services
+
+Manage Windows services with Zoi packages:
+
+```lua service.pkg.lua
+metadata {
+  name = "myservice",
+  description = "Background service",
+  -- ...
+}
+
+hooks {
+  post_install = {
+    ["windows-amd64"] = {
+      "sc.exe create MyService binPath=$env:USERPROFILE\\.zoi\\pkgs\\bin\\myservice.exe start=auto",
+      "sc.exe start MyService"
+    }
+  },
+  pre_remove = {
+    ["windows-amd64"] = {
+      "sc.exe stop MyService",
+      "sc.exe delete MyService"
+    }
+  }
+}
+
+function package(args)
+  ZCP("myservice.exe", "${usrroot}/bin/")
+end
+```
+
+## Environment Variables
+
+Zoi automatically manages PATH on Windows. To set additional environment variables:
+
+```lua
+hooks {
+  post_install = {
+    ["windows-amd64"] = {
+      "[Environment]::SetEnvironmentVariable('MYAPP_HOME', '$env:USERPROFILE\\.zoi\\pkgs\\store\\myapp', 'User')"
+    }
+  }
+}
+```
+
+## WSL Integration
+
+Use Zoi in both Windows and WSL on the same machine:
+
+### Windows Zoi
+
+Install Zoi on Windows for Windows applications:
+
+```powershell
+powershell -c "irm zillowe.pages.dev/scripts/zoi/install.ps1|iex"
+zoi install nodejs  # Installs Windows version of Node.js
+```
+
+### WSL Zoi
+
+Install Zoi inside WSL for Linux applications:
+
+```bash
+# Inside WSL
+curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+zoi install nodejs  # Installs Linux version of Node.js
+```
+
+Both installations are independent and don't interfere with each other.
+
+## Common Issues
+
+### "zoi: command not found"
+
+**Problem:** Zoi not in PATH.
+
+**Solution:**
+
+1. Restart your terminal/PowerShell session
+2. Verify PATH includes `%USERPROFILE%\.zoi\pkgs\bin`:
+
+   ```powershell
+   $env:PATH -split ';' | Select-String '.zoi'
+   ```
+
+3. Manually add to PATH if missing (see installation steps)
+
+### "Access Denied" or Permission Errors
+
+**Problem:** Insufficient permissions.
+
+**Solution:**
+
+- For user-scope operations: Ensure you have write access to `%USERPROFILE%\.zoi\`
+- For system-scope operations: Run PowerShell as Administrator
+
+### "Cannot be loaded because running scripts is disabled"
+
+**Problem:** PowerShell execution policy blocks scripts.
+
+**Solution:**
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+### Antivirus Blocks Downloads
+
+**Problem:** Antivirus software blocks Zoi or package downloads.
+
+**Solution:**
+
+1. Add `%USERPROFILE%\.zoi\` to antivirus exclusions
+2. Or temporarily disable real-time protection during installation
+
+### Long Path Issues
+
+**Problem:** Paths exceed 260 characters (Windows MAX_PATH limit).
+
+**Solution:**
+
+Enable long path support:
+
+1. Run as Administrator:
+
+   ```powershell
+   New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+     -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+   ```
+
+2. Or use Group Policy: **Computer Configuration** > **Administrative Templates** > **System** > **Filesystem** > **Enable Win32 long paths**
+
+### Unicode Characters Not Displaying
+
+**Problem:** Symbols/icons appear as boxes or question marks.
+
+**Solution:**
+
+- Use **Windows Terminal** instead of CMD/PowerShell legacy console
+- Or change console font to a font with Unicode support (e.g., Cascadia Code, Consolas)
+
+## Development on Windows
+
+Use Zoi for Windows development:
+
+```powershell
+# Install build tools
+zoi install gcc mingw cmake
+
+# Install languages
+zoi install nodejs python rust
+
+# Enter dev environment
+zoi dev
+```
+
+Manage project dependencies with `zoi.yaml`:
+
+```yaml zoi.yaml
+name: my-windows-app
+dependencies:
+  - nodejs
+  - python
+  - gcc
+
+commands:
+  build:
+    run: msbuild MyApp.sln
+    scope: project
+  test:
+    run: pytest tests/
+    scope: project
+```
+
+Run commands:
+
+```powershell
+zoi run build
+zoi run test
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Complete installation guide for all platforms
+  </Card>
+  <Card title="Creating Packages" icon="box" href="/guides/creating-packages">
+    Build cross-platform packages including Windows
+  </Card>
+  <Card title="Project Configuration" icon="folder-tree" href="/project-config">
+    Use zoi.yaml for Windows development projects
+  </Card>
+  <Card title="Commands Reference" icon="terminal" href="/commands/all-commands">
+    All Zoi commands with Windows examples
+  </Card>
+</CardGroup>

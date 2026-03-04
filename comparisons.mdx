@@ -1,0 +1,270 @@
+---
+title: Comparisons
+description: How Zoi compares to other package managers and when to use each tool
+---
+
+## Feature Comparison
+
+Zoi is designed to complement and integrate with existing package managers while providing unique features for cross-platform development and environment management.
+
+### Zoi vs Traditional Package Managers
+
+| Feature | Zoi | apt | pacman | brew | nix |
+|---------|-----|-----|--------|------|-----|
+| **Cross-Platform** | ✅ Linux, macOS, Windows | ❌ Debian/Ubuntu only | ❌ Arch Linux only | ✅ macOS, Linux | ✅ Linux, macOS |
+| **User-Level Installs** | ✅ No sudo required | ❌ Requires sudo | ❌ Requires sudo | ✅ User-level | ✅ User-level |
+| **Dynamic Package Definitions** | ✅ Lua scripts | ❌ Static | ❌ Static | ✅ Ruby DSL | ✅ Nix language |
+| **Multiple Registries** | ✅ Git-based | ❌ Fixed repos | ❌ Fixed repos | ✅ Taps | ✅ Channels |
+| **Dependency Integration** | ✅ 40+ managers | ❌ apt only | ❌ pacman only | ✅ Limited | ❌ Nix only |
+| **Project Environments** | ✅ zoi.yaml | ❌ None | ❌ None | ❌ None | ✅ shell.nix |
+| **Binary + Source Support** | ✅ Both | ✅ Both | ✅ Both | ✅ Both | ❌ Source only |
+| **Parallel Installation** | ✅ Yes | ❌ No | ❌ Sequential | ✅ Yes | ✅ Yes |
+| **Rollback Support** | ✅ Yes | ❌ Limited | ❌ No | ❌ No | ✅ Yes |
+| **Package Signing** | ✅ GPG + checksums | ✅ GPG | ✅ GPG | ❌ Checksums only | ✅ Checksums |
+| **Audit Logging** | ✅ Full history | ❌ Limited | ❌ No | ❌ No | ❌ No |
+| **Virtual Packages** | ✅ provides/replaces | ✅ Yes | ✅ Yes | ❌ No | ✅ Yes |
+| **File Conflict Detection** | ✅ Pre-download check | ✅ On install | ✅ On install | ✅ On install | ✅ Isolation |
+
+### Language Package Managers
+
+| Feature | Zoi | npm | cargo | pip | go |
+|---------|-----|-----|-------|-----|----|
+| **Language Agnostic** | ✅ Any | ❌ JavaScript | ❌ Rust | ❌ Python | ❌ Go |
+| **System Packages** | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No |
+| **Global Installs** | ✅ Default | ⚠️ Discouraged | ✅ cargo install | ⚠️ pipx | ✅ go install |
+| **Project Dependencies** | ✅ zoi.yaml | ✅ package.json | ✅ Cargo.toml | ✅ requirements.txt | ✅ go.mod |
+| **Cross-Language Deps** | ✅ Yes | ❌ No | ❌ No | ❌ No | ❌ No |
+| **Platform Binaries** | ✅ Yes | ❌ No | ✅ Platform crates | ❌ No | ✅ CGO |
+
+## When to Use Zoi
+
+Zoi excels in specific scenarios:
+
+### ✅ Use Zoi When:
+
+1. **Cross-Platform Development**
+   - Working on projects across Linux, macOS, and Windows
+   - Sharing development environments with teammates on different OSes
+   - Building portable tools that work everywhere
+
+2. **User-Level Package Management**
+   - You don't have sudo/admin access
+   - You want to avoid polluting system directories
+   - You need different versions than system packages
+
+3. **Multi-Language Projects**
+   - Your project uses tools from multiple ecosystems (Node.js, Python, Rust, etc.)
+   - You want a single workflow to manage all dependencies
+   - You need both system and language-specific tools
+
+4. **Environment Reproducibility**
+   - You need to recreate exact development environments
+   - You want version pinning across all tools
+   - You need to rollback to previous configurations
+
+5. **Custom Package Distribution**
+   - You want to distribute internal tools to your team
+   - You need a simple way to package and share binaries
+   - You want Git-based package hosting
+
+6. **Integration with Existing Managers**
+   - You want to complement apt/brew/pacman, not replace them
+   - You need to manage dependencies across multiple package managers
+   - You want a unified interface for different backends
+
+### ❌ Use Alternatives When:
+
+1. **System Package Management**
+   - **Use apt/pacman/dnf** for:
+     - System-critical packages and libraries
+     - OS-level components and services
+     - System-wide installations requiring deep integration
+
+2. **macOS Native Experience**
+   - **Use Homebrew** for:
+     - macOS-specific optimizations
+     - Casks for GUI applications
+     - Formula with deep macOS integration
+
+3. **Reproducible System Configurations**
+   - **Use Nix** for:
+     - Declarative system configuration
+     - Isolated development environments
+     - Functional package management philosophy
+
+4. **Language-Specific Development**
+   - **Use npm/cargo/pip/go** for:
+     - Library dependencies in your code
+     - Language-specific development tools
+     - Package.json/Cargo.toml managed dependencies
+
+5. **Containerized Environments**
+   - **Use Docker** for:
+     - Production deployments
+     - Complete environment isolation
+     - Multi-service orchestration
+
+## Integration Stories
+
+Zoi is designed to work alongside other package managers, not replace them.
+
+### With System Package Managers
+
+```sh
+# System packages for libraries
+sudo apt install libssl-dev build-essential
+
+# User tools with Zoi
+zoi install @zillowe/hello
+zoi install @core/ripgrep
+```
+
+### With Language Package Managers
+
+```yaml
+# zoi.yaml - Project environment
+packages:
+  - name: node
+    check: node --version
+  - name: rust  
+    check: cargo --version
+    
+dependencies:
+  # Zoi manages the runtime tools
+  - zoi:ripgrep
+  - zoi:fd
+  
+  # npm manages JavaScript libraries
+  - npm:typescript
+  - npm:eslint
+  
+  # cargo manages Rust tools
+  - cargo:cargo-watch
+  - cargo:cargo-audit
+```
+
+Zoi can declare dependencies for 40+ package managers:
+
+```lua
+-- In a package definition
+dependencies = {
+  runtime = {
+    "apt:libssl-dev",      -- Debian/Ubuntu
+    "pacman:openssl",      -- Arch Linux  
+    "brew:openssl@3",      -- macOS
+    "npm:typescript",      -- Node.js
+    "pip:requests",        -- Python
+    "cargo:serde",         -- Rust
+    "zoi:another-package", -- Zoi packages
+  }
+}
+```
+
+### With Homebrew on macOS
+
+```sh
+# Use Homebrew for macOS-specific apps
+brew install --cask visual-studio-code
+brew install --cask docker
+
+# Use Zoi for cross-platform CLI tools
+zoi install @core/jq
+zoi install @main/gh
+```
+
+### With Nix for Development Shells
+
+```nix
+# shell.nix
+{ pkgs ? import <nixpkgs> {} }:
+
+pkgs.mkShell {
+  buildInputs = [
+    pkgs.git
+    pkgs.gnumake
+  ];
+  
+  shellHook = ''
+    # Use Zoi for project-specific tools
+    if ! command -v zoi &> /dev/null; then
+      curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    fi
+    zoi env dev
+  '';
+}
+```
+
+## Performance Comparison
+
+### Installation Speed
+
+| Package Manager | Cold Install* | Warm Install** | Parallel Installs |
+|----------------|---------------|----------------|-------------------|
+| Zoi | Fast | Very Fast | ✅ Yes |
+| apt | Medium | Fast | ❌ No |
+| pacman | Fast | Fast | ❌ No |
+| brew | Slow | Medium | ✅ Yes |
+| nix | Slow | Very Fast | ✅ Yes |
+
+*First time, no cache
+**With cached packages
+
+### Repository Sync
+
+Zoi uses parallel registry sync to update multiple repositories concurrently, significantly reducing sync times compared to sequential updates.
+
+## Philosophy Differences
+
+### Zoi: Integration & Flexibility
+
+- Works with existing package managers
+- Dynamic Lua-based package definitions
+- User-focused, sudo-free by default
+- Git-based, decentralized registries
+- Cross-platform from the ground up
+
+### apt/pacman: System Integrity
+
+- Manages system-critical packages
+- Strict versioning for stability
+- Deep OS integration
+- Centralized, curated repositories
+
+### Homebrew: macOS Native
+
+- Optimized for macOS experience
+- Formula-based package definitions
+- Strong community ecosystem
+- User-level installations
+
+### Nix: Functional Purity
+
+- Reproducible builds by design
+- Isolated package environments
+- Declarative configuration
+- Atomic upgrades and rollbacks
+
+### npm/cargo/pip: Language Ecosystems
+
+- Library and framework management
+- Tight language integration
+- Version resolution algorithms
+- Large ecosystem for specific languages
+
+## Conclusion
+
+Zoi is not a replacement for existing package managers—it's a complement. Use Zoi when you need:
+
+- Cross-platform consistency
+- User-level package management  
+- Multi-ecosystem integration
+- Project environment management
+- Custom package distribution
+
+Combine Zoi with system package managers, language-specific tools, and containerization for a complete development workflow.
+
+## Related Resources
+
+- [Migration Guide](/docs/zds/zoi/migrate) - Migrate from other package managers
+- [Zoidberg](/docs/zds/zoi/zoidberg) - Official package registry
+- [Dependencies Documentation](https://zillowe.qzz.io/docs/zds/zoi/dependencies) - Supported package managers

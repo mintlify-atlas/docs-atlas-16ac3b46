@@ -1,0 +1,358 @@
+---
+title: zoi dev
+description: Enter a development shell for the current project
+---
+
+## Syntax
+
+```bash
+zoi dev [OPTIONS]
+zoi develop [OPTIONS]  # alias
+```
+
+## Description
+
+Enters an isolated development environment for the current project. This command:
+- Loads project configuration from `zoi.yaml`
+- Ensures all required packages are installed locally to `.zoi/store/`
+- Sets up environment variables (`PATH`, `LD_LIBRARY_PATH`, etc.)
+- Drops you into an interactive subshell with all dependencies available
+- Supports custom environment variables per project
+
+The development shell is isolated from your system environment, ensuring reproducible builds and preventing conflicts between project dependencies.
+
+## Options
+
+<ParamField path="-r, --run" type="string">
+  Execute a specific command in the dev shell instead of starting an interactive shell.
+  
+  **Example:** `--run "npm install"`
+</ParamField>
+
+<ParamField path="-r, --root" type="path" global>
+  Operate on a different root directory.
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+```bash Interactive dev shell
+# Enter development shell
+cd my-project
+zoi dev
+
+# You're now in an isolated shell
+[dev] $ which node
+/path/to/my-project/.zoi/store/zoidberg/main/nodejs/latest/bin/node
+
+[dev] $ exit
+:: Exited dev shell.
+```
+
+```bash Run command
+# Run a single command
+zoi dev --run "npm install"
+
+# Build project
+zoi dev --run "make"
+
+# Run tests
+zoi dev -r "npm test"
+```
+
+```bash Shell detection
+# Uses $SHELL environment variable
+export SHELL=/bin/zsh
+zoi dev  # Opens zsh
+
+# On Windows, uses pwsh (PowerShell)
+```
+</CodeGroup>
+
+## Project Configuration
+
+Projects are configured via `zoi.yaml`:
+
+```yaml
+name: my-web-app
+local: true  # Install to .zoi/store/
+
+pkgs:
+  - nodejs
+  - npm
+  - python
+  - gcc:base,libs
+
+shell:
+  env:
+    NODE_ENV: development
+    PYTHON_PATH: ./src
+    CUSTOM_VAR: value
+```
+
+## Environment Variables
+
+The dev shell automatically sets up:
+
+### PATH
+
+Adds package binary directories:
+
+```bash
+PATH=.zoi/store/.../nodejs/latest/bin:.zoi/store/.../npm/latest/bin:$PATH
+```
+
+### Library Paths
+
+**Linux:**
+```bash
+LD_LIBRARY_PATH=.zoi/store/.../lib:$LD_LIBRARY_PATH
+```
+
+**macOS:**
+```bash
+DYLD_LIBRARY_PATH=.zoi/store/.../lib:$DYLD_LIBRARY_PATH
+```
+
+### Include Paths
+
+For C/C++ development:
+
+```bash
+CPATH=.zoi/store/.../include:$CPATH
+C_INCLUDE_PATH=.zoi/store/.../include:$C_INCLUDE_PATH
+CPLUS_INCLUDE_PATH=.zoi/store/.../include:$CPLUS_INCLUDE_PATH
+```
+
+### pkg-config
+
+```bash
+PKG_CONFIG_PATH=.zoi/store/.../lib/pkgconfig:$PKG_CONFIG_PATH
+```
+
+### Custom Variables
+
+From `zoi.yaml` `shell.env` section:
+
+```bash
+NODE_ENV=development
+PYTHON_PATH=./src
+CUSTOM_VAR=value
+```
+
+### Shell Indicator
+
+```bash
+ZOI_SHELL=dev  # Indicates you're in a dev shell
+```
+
+## Platform-Specific Environment
+
+Configure different environments per platform:
+
+```yaml
+name: my-project
+local: true
+pkgs:
+  - gcc
+
+shell:
+  env:
+    default:
+      BUILD_TYPE: release
+    linux:
+      CC: gcc
+      CXX: g++
+    darwin:
+      CC: clang
+      CXX: clang++
+    windows:
+      CC: cl
+      CXX: cl
+```
+
+Zoi automatically selects the environment matching your platform.
+
+## Dependency Installation
+
+When entering the dev shell:
+
+```bash
+$ zoi dev
+:: Entering development shell for project: my-web-app
+:: Ensuring project dependencies are installed...
+--- Installing dependencies ---
+ npm@10.2.0
+ nodejs@20.0.0
+:: Entering dev shell (type 'exit' to leave)...
+
+[dev] $
+```
+
+If packages are already installed, they're skipped:
+
+```bash
+$ zoi dev
+:: Entering development shell for project: my-web-app
+:: Entering dev shell (type 'exit' to leave)...
+
+[dev] $
+```
+
+## Run Mode
+
+Execute commands without an interactive shell:
+
+```bash
+# Install dependencies
+zoi dev --run "npm install"
+
+# Output:
+:: Entering development shell for project: my-web-app
+:: Running: npm install
+[npm output...]
+```
+
+If the command fails, `zoi dev` exits with the same code:
+
+```bash
+$ zoi dev --run "npm test"
+:: Running: npm test
+[test output...]
+Test failed
+
+$ echo $?
+1  # Exit code from npm test
+```
+
+## Shell Prompts
+
+Customize your shell prompt to indicate dev mode:
+
+**Bash:**
+```bash
+# Add to ~/.bashrc
+if [ "$ZOI_SHELL" = "dev" ]; then
+  PS1="[dev] $PS1"
+fi
+```
+
+**Zsh:**
+```zsh
+# Add to ~/.zshrc
+if [[ "$ZOI_SHELL" = "dev" ]]; then
+  PROMPT="[dev] $PROMPT"
+fi
+```
+
+## Workflow Examples
+
+### Node.js Project
+
+```yaml
+# zoi.yaml
+name: my-node-app
+local: true
+pkgs:
+  - nodejs
+  - npm
+```
+
+```bash
+# Start dev shell
+zoi dev
+
+# Install dependencies
+[dev] $ npm install
+
+# Run dev server
+[dev] $ npm run dev
+
+# Exit when done
+[dev] $ exit
+```
+
+### Python Project
+
+```yaml
+# zoi.yaml
+name: my-python-app
+local: true
+pkgs:
+  - python
+  - python-pip
+
+shell:
+  env:
+    PYTHONPATH: ./src
+```
+
+```bash
+zoi dev
+
+[dev] $ pip install -r requirements.txt
+[dev] $ python -m pytest
+```
+
+### C/C++ Project
+
+```yaml
+# zoi.yaml
+name: my-cpp-app
+local: true
+pkgs:
+  - gcc:base,libs
+  - cmake
+  - make
+```
+
+```bash
+zoi dev
+
+[dev] $ mkdir build && cd build
+[dev] $ cmake ..
+[dev] $ make
+```
+
+## Exit Codes
+
+- `0`: Dev shell exited normally
+- `1`: Failed to load project configuration
+- `1`: Failed to install dependencies
+- `1`: Command execution failed (in `--run` mode)
+
+## Comparison: dev vs. shell
+
+| Feature | `zoi dev` | `zoi shell` |
+|---------|-----------|-------------|
+| **Purpose** | Project development | Ephemeral testing |
+| **Installation** | To `.zoi/store/` (persistent) | To temp cache |
+| **Configuration** | From `zoi.yaml` | From CLI arguments |
+| **Environment** | Project-specific | Minimal/testing |
+| **Use Case** | Long-term development | Quick testing |
+
+**Examples:**
+
+```bash
+# Project development - persistent installation
+zoi dev  # Uses zoi.yaml
+
+# Quick test - temporary
+zoi shell -p nodejs -r "node script.js"
+```
+
+## Tips
+
+1. **Commit zoi.yaml**: Share dev environment with team
+2. **Use zoi.lock**: Ensure reproducible dependency versions
+3. **Customize Prompt**: Make dev shell visually distinct
+4. **Nested Shells**: Avoid nesting dev shells (check `$ZOI_SHELL`)
+5. **CI/CD**: Use `zoi dev --run` in build scripts
+
+## Related Commands
+
+- [zoi install](/docs/zds/zoi/commands/install) - Install project dependencies
+- [zoi shell](/docs/zds/zoi/commands/all-commands#shell) - Ephemeral environment
+- [zoi exec](/docs/zds/zoi/commands/exec) - Execute without installation
+- [zoi run](/docs/zds/zoi/commands/all-commands#run) - Run project commands
+- [zoi env](/docs/zds/zoi/commands/all-commands#env) - Manage project environments

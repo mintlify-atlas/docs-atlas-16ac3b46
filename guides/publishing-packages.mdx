@@ -1,0 +1,399 @@
+---
+title: "Publishing Packages"
+description: "Publish and distribute Zoi packages through repositories"
+---
+
+Once you've created a package, you can publish it to a Zoi repository to make it available for installation by users.
+
+## Repository Structure
+
+Zoi repositories are Git repositories with a specific structure:
+
+```
+my-repo/
+├── packages/
+│   ├── myapp/
+│   │   └── myapp.pkg.lua
+│   ├── mytool/
+│   │   └── mytool.pkg.lua
+│   └── mylib/
+│       └── mylib.pkg.lua
+└── README.md
+```
+
+Each package lives in its own directory under `packages/` with a `.pkg.lua` file.
+
+## Creating a Repository
+
+<Steps>
+  <Step title="Create a Git repository">
+    Initialize a new repository on GitHub, GitLab, or any Git hosting service:
+
+    ```bash
+    mkdir my-zoi-repo
+    cd my-zoi-repo
+    git init
+    ```
+  </Step>
+
+  <Step title="Set up the package directory">
+    ```bash
+    mkdir -p packages/myapp
+    cp myapp.pkg.lua packages/myapp/
+    ```
+  </Step>
+
+  <Step title="Add a README">
+    Create a `README.md` describing your repository:
+
+    ```markdown README.md
+    # My Zoi Repository
+
+    Custom packages for development tools.
+
+    ## Installation
+
+    ```bash
+    zoi repo add custom https://github.com/username/my-zoi-repo
+    zoi sync
+    ```
+
+    ## Packages
+
+    - **myapp** - Description of myapp
+    - **mytool** - Description of mytool
+    ```
+  </Step>
+
+  <Step title="Commit and push">
+    ```bash
+    git add .
+    git commit -m "Initial package repository"
+    git remote add origin https://github.com/username/my-zoi-repo
+    git push -u origin main
+    ```
+  </Step>
+</Steps>
+
+## Building and Hosting Package Archives
+
+For binary packages, you need to build and host the compiled archives. There are two approaches:
+
+### Option 1: GitHub/GitLab Releases
+
+Build packages and upload them as release artifacts:
+
+<Steps>
+  <Step title="Build packages for all platforms">
+    ```bash
+    zoi package build myapp.pkg.lua --type pre-compiled -p linux-amd64
+    zoi package build myapp.pkg.lua --type pre-compiled -p linux-arm64
+    zoi package build myapp.pkg.lua --type pre-compiled -p darwin-amd64
+    zoi package build myapp.pkg.lua --type pre-compiled -p darwin-arm64
+    zoi package build myapp.pkg.lua --type pre-compiled -p windows-amd64
+    ```
+  </Step>
+
+  <Step title="Create a release">
+    Create a new release on GitHub/GitLab and upload the `.pkg.tar.zst`, `.hash`, `.size`, and `.sig` files.
+  </Step>
+
+  <Step title="Update .pkg.lua with release URLs">
+    Reference the release artifacts in your package definition:
+
+    ```lua myapp.pkg.lua
+    metadata {
+      name = "myapp",
+      version = "1.0.0",
+      -- ...
+    }
+
+    function prepare(args)
+      local base_url = "https://github.com/username/my-zoi-repo/releases/download/v" .. PKG.version
+      local archive = string.format("myapp-%s-%s.pkg.tar.zst", PKG.version, PLATFORM)
+      
+      UTILS.FILE(base_url .. "/" .. archive, archive)
+      UTILS.EXTRACT(archive, ".")
+    end
+    ```
+  </Step>
+</Steps>
+
+### Option 2: Self-Hosted Archives
+
+Host package archives on your own server or CDN:
+
+```lua
+function prepare(args)
+  local url = string.format(
+    "https://cdn.example.com/packages/myapp/%s/myapp-%s-%s.pkg.tar.zst",
+    PKG.version, PKG.version, PLATFORM
+  )
+  
+  UTILS.FILE(url, "archive.pkg.tar.zst")
+  UTILS.EXTRACT("archive.pkg.tar.zst", ".")
+end
+```
+
+## Using Your Repository
+
+Users can add your repository and install packages:
+
+```bash
+# Add repository
+zoi repo add custom https://github.com/username/my-zoi-repo
+
+# Sync repository
+zoi sync
+
+# Install package
+zoi install @custom/myapp
+```
+
+## Publishing to the Official Registry
+
+To publish packages to the official Zoidberg registry:
+
+<Steps>
+  <Step title="Fork the Zoidberg repository">
+    Fork the official registry at [github.com/Zillowe/Zoidberg](https://github.com/Zillowe/Zoidberg).
+  </Step>
+
+  <Step title="Add your package">
+    Create a directory in `packages/` with your `.pkg.lua` file:
+
+    ```bash
+    mkdir packages/myapp
+    cp myapp.pkg.lua packages/myapp/
+    ```
+  </Step>
+
+  <Step title="Build and host package archives">
+    Build packages for all supported platforms and host them (e.g., GitHub Releases).
+  </Step>
+
+  <Step title="Test your package">
+    ```bash
+    # Add your fork as a test repository
+    zoi repo add test https://github.com/yourusername/Zoidberg
+    zoi sync
+    
+    # Install and test
+    zoi install @test/myapp
+    myapp --version
+    ```
+  </Step>
+
+  <Step title="Submit a pull request">
+    Open a pull request to the official repository with:
+    - Package `.pkg.lua` file
+    - Updated `README.md` listing your package
+    - Documentation on how to use the package
+    - Links to hosted package archives
+  </Step>
+</Steps>
+
+## Package Versioning
+
+Follow semantic versioning (SemVer) for package versions:
+
+- **Major**: Breaking changes (`2.0.0`)
+- **Minor**: New features, backward compatible (`1.1.0`)
+- **Patch**: Bug fixes, backward compatible (`1.0.1`)
+
+Define version in metadata or dynamically fetch it:
+
+```lua
+-- Static version
+metadata {
+  version = "1.2.3",
+  -- ...
+}
+
+-- Dynamic version from GitHub
+local latest = UTILS.FETCH.GITHUB.LATEST.tag({ repo = "owner/project" })
+metadata {
+  version = latest:gsub("^v", ""), -- Remove 'v' prefix
+  -- ...
+}
+```
+
+## Signing Packages
+
+Sign your packages with GPG for authenticity verification:
+
+```bash
+# Build and sign
+zoi package build myapp.pkg.lua --type pre-compiled --sign your-key-name
+```
+
+This creates a `.sig` file alongside the package archive. Users need to import your public key to verify signatures:
+
+```bash
+# Add your public key
+zoi pgp add --url https://example.com/your-key.asc --name yourname
+
+# Install package (signature verified automatically)
+zoi install @custom/myapp
+```
+
+See the [Security guide](/guides/security) for details on GPG workflows.
+
+## Continuous Integration
+
+Automate package builds with CI/CD:
+
+### GitHub Actions
+
+```yaml .github/workflows/build.yml
+name: Build Packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [linux-amd64, linux-arm64, darwin-amd64, darwin-arm64, windows-amd64]
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Zoi
+        run: |
+          curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+          echo "$HOME/.zoi/pkgs/bin" >> $GITHUB_PATH
+      
+      - name: Build package
+        run: |
+          zoi package build packages/myapp/myapp.pkg.lua \
+            --type pre-compiled \
+            -p ${{ matrix.platform }} \
+            --sign ${{ secrets.GPG_KEY_NAME }}
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: packages-${{ matrix.platform }}
+          path: packages/myapp/*.pkg.tar.zst*
+  
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: packages-*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### GitLab CI
+
+```yaml .gitlab-ci.yml
+stages:
+  - build
+  - release
+
+variables:
+  PLATFORMS: "linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64"
+
+build:
+  stage: build
+  image: rust:latest
+  script:
+    - curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    - export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+    - |
+      for platform in $PLATFORMS; do
+        zoi package build packages/myapp/myapp.pkg.lua \
+          --type pre-compiled \
+          -p $platform \
+          --sign my-key
+      done
+  artifacts:
+    paths:
+      - packages/myapp/*.pkg.tar.zst*
+  only:
+    - tags
+
+release:
+  stage: release
+  image: alpine:latest
+  script:
+    - apk add --no-cache gitlab-release-cli
+    - |
+      gitlab-release create --name "Release $CI_COMMIT_TAG" \
+        --tag-name $CI_COMMIT_TAG \
+        --assets-link '{"name":"Packages","url":"'$CI_PROJECT_URL'/-/jobs/'$CI_JOB_ID'/artifacts/browse"}'
+  only:
+    - tags
+```
+
+See the [CI/CD guide](/guides/cicd) for more examples.
+
+## Repository Metadata
+
+Optionally add a `repo.yaml` file to describe your repository:
+
+```yaml repo.yaml
+name: My Custom Repository
+description: Collection of development tools and utilities
+maintainer:
+  name: Your Name
+  email: you@example.com
+  website: https://example.com
+website: https://github.com/username/my-zoi-repo
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Test thoroughly before publishing">
+    Install and test your package on all target platforms before making it public.
+  </Accordion>
+
+  <Accordion title="Sign all packages">
+    Use GPG signatures to ensure package authenticity and integrity.
+  </Accordion>
+
+  <Accordion title="Document dependencies clearly">
+    List all runtime and build dependencies in the `.pkg.lua` file.
+  </Accordion>
+
+  <Accordion title="Follow semantic versioning">
+    Use SemVer to communicate the nature of changes between versions.
+  </Accordion>
+
+  <Accordion title="Keep archives accessible">
+    Use reliable hosting (GitHub Releases, CDN) for package archives.
+  </Accordion>
+
+  <Accordion title="Provide installation examples">
+    Include clear instructions in your repository README.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Packages" icon="box" href="/guides/creating-packages">
+    Learn how to write .pkg.lua files
+  </Card>
+  <Card title="Security" icon="shield" href="/guides/security">
+    Set up GPG signing and verification
+  </Card>
+  <Card title="CI/CD Integration" icon="gears" href="/guides/cicd">
+    Automate package builds with CI/CD pipelines
+  </Card>
+  <Card title="Repositories" icon="git" href="/repositories">
+    Manage package repositories
+  </Card>
+</CardGroup>

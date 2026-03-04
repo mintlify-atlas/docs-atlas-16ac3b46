@@ -1,0 +1,214 @@
+---
+title: zoi uninstall
+description: Remove packages previously installed by Zoi
+---
+
+## Syntax
+
+```bash
+zoi uninstall [OPTIONS] <PACKAGES>...
+zoi un [OPTIONS] <PACKAGES>...   # alias
+zoi rm [OPTIONS] <PACKAGES>...   # alias
+zoi remove [OPTIONS] <PACKAGES>... # alias
+```
+
+## Description
+
+Removes one or more packages from the Zoi store and deletes their symlinks from the bin directory. The command will fail if a package was not installed by Zoi.
+
+Uninstallation is transactional - if any package fails to uninstall, all changes are rolled back to maintain system consistency.
+
+## Options
+
+<ParamField path="packages" type="string[]" required>
+  Package names to uninstall.
+  
+  **Formats:**
+  - `package-name` - Uninstall by name
+  - `@repo/package` - Specify repository
+  - `#handle@repo/package` - Full specification with registry
+  - `package:sub1,sub2` - Uninstall specific sub-packages
+</ParamField>
+
+<ParamField path="--scope" type="enum" values="[user, system, project]">
+  The scope to uninstall from:
+  - `user`: Uninstall from `~/.zoi/store/user/`
+  - `system`: Uninstall from `/opt/zoi/store/system/`
+  - `project`: Uninstall from `.zoi/store/` in current directory
+  
+  If not specified, searches all scopes for the package.
+  
+  Conflicts with `--local` and `--global`.
+</ParamField>
+
+<ParamField path="--local" type="boolean" default="false">
+  Uninstall from the current project (alias for `--scope=project`).
+  
+  Conflicts with `--global`.
+</ParamField>
+
+<ParamField path="--global" type="boolean" default="false">
+  Uninstall from global user installation (alias for `--scope=user`).
+</ParamField>
+
+<ParamField path="--save" type="boolean" default="false">
+  Remove the package from the project's `zoi.yaml` file. Only works with project-scoped uninstalls.
+</ParamField>
+
+<ParamField path="-r, --recursive" type="boolean" default="false">
+  Recursively remove dependencies that are no longer needed by any installed package.
+  
+  Only removes dependencies that:
+  - Were installed as dependencies (not explicitly installed)
+  - Are no longer required by any remaining package
+</ParamField>
+
+<ParamField path="-y, --yes" type="boolean" default="false" global>
+  Automatically answer yes to all prompts, skipping the confirmation step.
+</ParamField>
+
+<ParamField path="-r, --root" type="path" global>
+  Operate on a different root directory.
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+```bash Uninstall single package
+# Uninstall by name
+zoi uninstall nodejs
+
+# Uninstall from specific repository
+zoi uninstall @extra/redis
+
+# Uninstall with full specification
+zoi uninstall #zoidberg@main/python
+```
+
+```bash Uninstall multiple packages
+zoi uninstall nodejs npm yarn
+
+# Using alias
+zoi rm nodejs npm
+```
+
+```bash Uninstall with dependencies
+# Remove package and unused dependencies
+zoi uninstall --recursive nodejs
+
+# Short form
+zoi uninstall -r nodejs
+```
+
+```bash Project uninstalls
+# Uninstall from project
+zoi uninstall --local react
+
+# Uninstall and remove from zoi.yaml
+zoi uninstall --local --save react
+```
+
+```bash Scoped uninstalls
+# Uninstall from global user installation
+zoi uninstall --global nodejs
+
+# Uninstall from system installation (requires root)
+sudo zoi uninstall --scope=system nginx
+```
+
+```bash Non-interactive uninstall
+# Skip confirmation prompt
+zoi uninstall -y nodejs
+
+# Recursive uninstall without prompts
+zoi uninstall -ry nodejs npm
+```
+</CodeGroup>
+
+## Uninstallation Process
+
+1. **Package Resolution**: Locates installed package manifests
+2. **Dependency Check**: Identifies packages to remove (with `-r` flag)
+3. **Size Calculation**: Calculates total space to be freed
+4. **Confirmation**: Displays packages and prompts for confirmation
+5. **Transaction Start**: Begins transactional uninstall
+6. **File Removal**: Removes package files and symlinks
+7. **Manifest Deletion**: Removes installation manifests
+8. **Transaction Commit**: Records uninstallation in history
+9. **Hooks**: Runs global post-transaction hooks
+
+## Recursive Uninstall Behavior
+
+With `--recursive` flag:
+
+```bash
+# Initial state:
+# - app (explicit) depends on: libx, liby
+# - tool (explicit) depends on: libx
+# - libx (dependency)
+# - liby (dependency)
+
+zoi uninstall --recursive app
+
+# Result:
+# - app: removed
+# - liby: removed (no longer needed)
+# - libx: kept (still needed by 'tool')
+```
+
+## Exit Codes
+
+- `0`: Uninstallation completed successfully
+- `1`: Uninstallation failed (changes rolled back)
+- `1`: Package not found or not installed
+- `1`: User canceled operation
+
+## Error Handling
+
+### Ambiguous Package Name
+
+If multiple packages with the same name are installed from different sources:
+
+```bash
+$ zoi uninstall python
+Error: Ambiguous package name 'python'. It is installed from multiple repositories:
+  - #zoidberg@main/python
+  - #custom@extra/python
+Please be more specific, e.g. '#handle@repo/name'.
+```
+
+Solution: Use full package specification:
+
+```bash
+zoi uninstall #zoidberg@main/python
+```
+
+### Package Not Found
+
+```bash
+$ zoi uninstall nonexistent
+Error: Package 'nonexistent' is not installed.
+```
+
+### Rollback on Failure
+
+If any package fails to uninstall during a multi-package operation:
+
+```bash
+$ zoi uninstall pkg1 pkg2 pkg3
+--- Uninstalling package 'pkg1' ---
+Success: Uninstallation complete.
+--- Uninstalling package 'pkg2' ---
+Error: Failed to remove file: permission denied
+
+--- Rolling back changes ---
+Success: Rollback successful.
+Error: Uninstallation failed for: pkg2
+```
+
+## Related Commands
+
+- [zoi install](/docs/zds/zoi/commands/install) - Install packages
+- [zoi autoremove](/docs/zds/zoi/commands/all-commands#autoremove) - Remove orphaned dependencies
+- [zoi list](/docs/zds/zoi/commands/all-commands#list) - List installed packages
+- [zoi why](/docs/zds/zoi/commands/all-commands#why) - Show why a package is installed

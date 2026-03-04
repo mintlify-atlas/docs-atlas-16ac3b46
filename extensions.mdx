@@ -1,0 +1,433 @@
+---
+title: Extensions
+description: Extend Zoi functionality with shareable extensions that modify configuration, add plugins, and customize behavior
+---
+
+Zoi extensions are special packages that modify Zoi's configuration, add custom functionality, or integrate with external systems. Extensions can add repositories, registries, plugins, PGP keys, and more.
+
+## What are Extensions?
+
+Extensions are packages with `type = "extension"` that apply changes to your Zoi environment when installed. Unlike regular packages, extensions don't install software—they configure Zoi itself.
+
+### Use Cases
+
+- **Corporate registries**: Add your company's private package registry
+- **Development workflows**: Configure team-wide repositories and tools
+- **Security policies**: Add trusted PGP keys for signature verification
+- **Custom commands**: Distribute plugins across your team
+- **Project templates**: Set up project configurations automatically
+
+## Creating an Extension
+
+Extensions are defined in `.pkg.lua` files with a special `extension` section.
+
+### Basic Extension Structure
+
+```lua
+metadata {
+  name = "my-extension",
+  version = "1.0.0",
+  description = "Adds my organization's package repository",
+  repo = "main",
+  type = "extension",  -- Mark as extension
+  license = "MIT",
+  maintainer = {
+    name = "Your Name",
+    email = "you@example.com"
+  }
+}
+
+metadata {
+  extension = {
+    type = "zoi",
+    changes = {
+      -- Extension changes go here
+    }
+  }
+}
+```
+
+## Extension Changes
+
+Extensions can apply multiple types of changes:
+
+### Add a Git Repository
+
+Clone and register a Git repository containing packages.
+
+```lua
+metadata {
+  extension = {
+    type = "zoi",
+    changes = {
+      {
+        type = "repo-git",
+        add = "https://github.com/myorg/zoi-packages.git"
+      }
+    }
+  }
+}
+```
+
+### Set Default Registry
+
+Change the primary package registry.
+
+```lua
+changes = {
+  {
+    type = "registry-repo",
+    add = "https://git.mycompany.com/zoi/registry.git"
+  }
+}
+```
+
+### Add Supplementary Registry
+
+Add an additional registry alongside the default.
+
+```lua
+changes = {
+  {
+    type = "registry-add",
+    add = "https://git.myteam.com/zoi-packages.git"
+  }
+}
+```
+
+### Add Repository Tier
+
+Enable a specific repository tier (like "core", "main", "community").
+
+```lua
+changes = {
+  {
+    type = "repo-add",
+    add = "community"
+  }
+}
+```
+
+### Add PGP Key
+
+Add a trusted PGP key to the Zoi keyring.
+
+```lua
+changes = {
+  {
+    type = "pgp",
+    name = "myorg-signing-key",
+    key = "https://myorg.com/keys/signing-key.asc"
+  }
+}
+```
+
+Or use a PGP fingerprint:
+
+```lua
+{
+  type = "pgp",
+  name = "myorg-key",
+  key = "A1B2C3D4E5F6789012345678901234567890ABCD"
+}
+```
+
+### Add a Plugin
+
+Install a Lua plugin that adds custom commands or hooks.
+
+```lua
+changes = {
+  {
+    type = "plugin",
+    name = "myorg-utils",
+    script = [[
+      zoi.register_command({
+        name = "myorg-deploy",
+        description = "Deploy to MyOrg infrastructure",
+        callback = function(args)
+          zoi.ui.print("Deploying...", "cyan")
+          zoi.sh("deploy-script " .. args[1])
+        end
+      })
+    ]]
+  }
+}
+```
+
+### Add a Global Hook
+
+Install a global lifecycle hook.
+
+```lua
+changes = {
+  {
+    type = "hook",
+    name = "audit-installs",
+    content = [[
+      pre_install:
+        - echo "Installing {{PKG_NAME}}" >> /var/log/zoi-audit.log
+    ]]
+  }
+}
+```
+
+### Create Project Template
+
+Generate a `zoi.yaml` project file.
+
+```lua
+changes = {
+  {
+    type = "project",
+    add = [[
+name: my-project
+packages:
+  - nodejs
+  - python
+  - gcc
+scripts:
+  build: npm run build
+  test: npm test
+    ]]
+  }
+}
+```
+
+## Complete Extension Examples
+
+### Corporate Registry Extension
+
+```lua
+metadata {
+  name = "acme-corp-registry",
+  version = "1.0.0",
+  description = "ACME Corp internal package registry",
+  repo = "main",
+  type = "extension",
+  license = "Proprietary",
+  maintainer = {
+    name = "ACME IT",
+    email = "it@acme.com"
+  }
+}
+
+metadata {
+  extension = {
+    type = "zoi",
+    changes = {
+      -- Set our registry as default
+      {
+        type = "registry-repo",
+        add = "https://git.acme.com/zoi/registry.git"
+      },
+      -- Add PGP key for signature verification
+      {
+        type = "pgp",
+        name = "acme-build-server",
+        key = "https://git.acme.com/keys/build-server.asc"
+      },
+      -- Enable internal repo tier
+      {
+        type = "repo-add",
+        add = "acme-internal"
+      },
+      -- Add deployment plugin
+      {
+        type = "plugin",
+        name = "acme-deploy",
+        script = [[
+          zoi.register_command({
+            name = "acme-deploy",
+            description = "Deploy to ACME infrastructure",
+            callback = function(args)
+              local env = args[1] or "staging"
+              zoi.ui.print("Deploying to " .. env, "cyan")
+              zoi.sh("acme-deploy-tool --env " .. env)
+            end
+          })
+        ]]
+      }
+    }
+  }
+}
+```
+
+### Development Tools Extension
+
+```lua
+metadata {
+  name = "dev-tools-extension",
+  version = "2.0.0",
+  description = "Standard development environment setup",
+  repo = "main",
+  type = "extension",
+  license = "MIT",
+  maintainer = {
+    name = "DevOps Team",
+    email = "devops@example.com"
+  }
+}
+
+metadata {
+  extension = {
+    type = "zoi",
+    changes = {
+      -- Add community repository
+      {
+        type = "repo-add",
+        add = "community"
+      },
+      -- Install helpful plugin
+      {
+        type = "plugin",
+        name = "dev-setup",
+        script = [[
+          zoi.register_command({
+            name = "dev-init",
+            description = "Initialize development environment",
+            callback = function()
+              local tools = { "git", "nodejs", "python", "docker" }
+              for _, tool in ipairs(tools) do
+                zoi.ui.print("Installing " .. tool, "cyan")
+                zoi.sh("zoi install " .. tool)
+              end
+              zoi.ui.print("Dev environment ready!", "green")
+            end
+          })
+        ]]
+      }
+    }
+  }
+}
+```
+
+## Installing Extensions
+
+Install an extension just like a regular package:
+
+```bash
+zoi extension add my-extension
+```
+
+Or use the standard install command:
+
+```bash
+zoi install my-extension
+```
+
+## Removing Extensions
+
+Remove an extension and revert its changes:
+
+```bash
+zoi extension remove my-extension
+```
+
+**Note:** Extension removal attempts to undo all changes, but some actions (like adding repositories) may require manual cleanup.
+
+## Extension Behavior
+
+### What Happens on Install?
+
+1. Extension package is resolved and validated
+2. Each change in the `changes` array is applied in order
+3. Extension is recorded as installed in the package database
+4. Changes take effect immediately
+
+### What Happens on Remove?
+
+1. Extension's install manifest is loaded
+2. Changes are reverted in reverse order
+3. Extension package metadata is removed
+4. Some changes (like project files) may require manual cleanup
+
+### Idempotency
+
+Extensions should be idempotent—installing the same extension twice should not cause errors. Zoi handles this for:
+
+- Repositories (duplicates are ignored)
+- Registries (URL-based deduplication)
+- Plugins (overwrites existing files)
+
+## Packaging Extensions
+
+Extensions can be built and distributed like regular packages:
+
+```bash
+# Build extension package
+zoi package build my-extension.pkg.lua
+
+# Test installation
+zoi install my-extension
+
+# Verify changes
+zoi repo list
+zoi plugin list
+```
+
+## Extension Hooks
+
+Plugins can react to extension installation:
+
+```lua
+-- In a plugin file
+zoi.on_post_extension_add(function(manifest)
+  zoi.ui.print("Extension added: " .. manifest.name, "green")
+end)
+
+zoi.on_pre_extension_remove(function(manifest)
+  if not zoi.ui.confirm("Really remove " .. manifest.name .. "?") then
+    error("Cancelled")
+  end
+end)
+```
+
+## Best Practices
+
+### Security
+
+- **Verify sources**: Only install extensions from trusted sources
+- **Review changes**: Check what an extension does before installing
+- **PGP keys**: Validate PGP key fingerprints before adding
+
+### Design
+
+- **Single purpose**: Extensions should have a clear, focused purpose
+- **Documentation**: Include clear descriptions of what changes are made
+- **Versioning**: Use semantic versioning for extensions
+- **Testing**: Test extensions in isolated environments first
+
+### Distribution
+
+- **Public registries**: Submit extensions to registries for discoverability
+- **Internal hosting**: Use private Git repositories for corporate extensions
+- **Versioning**: Update extension versions when changing behavior
+
+## Troubleshooting
+
+### Extension Won't Install
+
+Check that:
+- The package `type` is set to `"extension"`
+- The `extension` metadata block is present
+- All URLs in changes are accessible
+
+### Changes Not Applied
+
+Verify:
+- Extension installed successfully: `zoi list | grep my-extension`
+- Configuration updated: `cat ~/.zoi/pkgs/config.yaml`
+- Plugins loaded: `ls ~/.zoi/plugins/`
+
+### Extension Removal Issues
+
+Some changes can't be automatically reverted:
+- Project files (`zoi.yaml`) - must be manually removed
+- Modified configurations may need manual reset
+
+## See Also
+
+- [Plugin API Reference](/docs/zds/zoi/lua-plugin-api) - Create custom plugins
+- [Configuration Guide](/docs/zds/zoi/config) - Understanding Zoi configuration
+- [Package Creation](/docs/zds/zoi/essentials/packaging) - Building packages and extensions

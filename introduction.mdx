@@ -1,0 +1,215 @@
+---
+title: Introduction to Zoi
+description: Universal package manager and environment setup tool for cross-platform development workflows
+---
+
+Zoi is a universal package manager and environment setup tool, designed to simplify package management and environment configuration across multiple operating systems.
+
+## What is Zoi?
+
+Zoi is a modern CLI tool that streamlines your development workflow by managing tools and project environments. Whether you're on Linux, macOS, or Windows, Zoi provides a unified interface for installing packages, managing dependencies, and configuring development environments.
+
+<CardGroup cols={2}>
+  <Card title="Cross-Platform" icon="globe">
+    Works seamlessly on Linux (x64/arm64), macOS (Intel/Apple Silicon), and Windows
+  </Card>
+  <Card title="Universal Dependencies" icon="diagram-project">
+    Integrates with 40+ package managers including apt, brew, cargo, npm, pip, and more
+  </Card>
+  <Card title="Project Environments" icon="folder-tree">
+    Manage project-specific commands and environments using a local `zoi.yaml` file
+  </Card>
+  <Card title="Secure & Verifiable" icon="shield-check">
+    Verifies package integrity with checksums and authenticity with GPG signatures
+  </Card>
+</CardGroup>
+
+## Why Use Zoi?
+
+### Simplify Package Management
+
+Instead of managing multiple package managers across different systems, Zoi provides a single interface to install and manage tools from any source:
+
+```bash
+# Install from the Zoi registry
+zoi install @zillowe/hello
+
+# Install from a URL
+zoi install https://example.com/tool.pkg.tar.zst
+
+# Install from a local file
+zoi install ./my-package.pkg.tar.zst
+
+# Install from a Git repository
+zoi install --repo Zillowe/Hello
+```
+
+### Manage Complex Dependencies
+
+Define dependencies from multiple ecosystems in a single package. Zoi automatically installs them using the appropriate package manager:
+
+```yaml
+# zoi.yaml
+pkgs:
+  - zoi:postgresql
+  - zoi:redis
+  - cargo:ripgrep
+  - npm:typescript
+  - pip:requests
+```
+
+### Consistent Development Environments
+
+Use `zoi dev` to enter a development shell with all project dependencies installed and environment variables configured:
+
+```bash
+zoi dev
+# Now in a subshell with all dependencies in PATH
+```
+
+## Key Features
+
+<AccordionGroup>
+  <Accordion title="Dynamic Package Definitions">
+    Packages are defined with dynamic Lua scripts (`.pkg.lua`) for maximum flexibility. Compute URLs dynamically, handle platform-specific logic, and run custom build steps.
+
+    ```lua
+    metadata({
+      name = "my-tool",
+      version = "1.0.0",
+      bins = { "my-tool" },
+    })
+
+    function prepare()
+      local url = string.format(
+        "https://example.com/releases/v%s/tool-%s-%s.tar.gz",
+        PKG.version, SYSTEM.OS, SYSTEM.ARCH
+      )
+      UTILS.EXTRACT(url, "src")
+    end
+    ```
+  </Accordion>
+
+  <Accordion title="Repository-Based Package Distribution">
+    Use official, community, or your own private/public Git-based repositories. Zoi supports multiple registries with parallel syncing for faster updates.
+
+    The official registry, **Zoidberg**, contains packages organized into tiers:
+    - **Core**: Essential packages and libraries
+    - **Main**: Common tools for most users
+    - **Extra**: Less common or newer packages
+    - **Community**: User-submitted packages
+  </Accordion>
+
+  <Accordion title="Advanced CLI Tools">
+    Zoi includes powerful commands for package management:
+
+    - `zoi search`: Interactive TUI mode with result sorting and filtering
+    - `zoi history`: View the persistent audit trail of past transactions
+    - `zoi doctor`: Proactive system health checks
+    - `zoi why`: Understand why a package is installed
+    - `zoi rollback`: Revert a package or entire transaction
+    - `zoi exec`: Run a package's binary without installing it
+  </Accordion>
+
+  <Accordion title="Compliance & Audit Logging">
+    Zoi maintains a persistent, tamper-evident audit log of all package operations (install, uninstall, upgrade), viewable via the `zoi history` command.
+  </Accordion>
+
+  <Accordion title="File Conflict Detection">
+    Zoi prevents packages from accidentally overwriting existing files and supports pre-download conflict checking via remote metadata to save bandwidth.
+  </Accordion>
+
+  <Accordion title="Versatile Package Types">
+    Zoi supports different types of packages:
+    - **Package**: A standard software package
+    - **Collection**: A meta-package that groups other packages together
+    - **App**: A template for bootstrapping new projects (`zoi create`)
+    - **Extension**: A package to extend Zoi's own functionality
+  </Accordion>
+</AccordionGroup>
+
+## How It Works
+
+Zoi uses a three-step workflow:
+
+<Steps>
+  <Step title="Sync Repositories">
+    Download or update package registries from Git repositories:
+
+    ```bash
+    zoi sync
+    ```
+
+    This clones the official Zoidberg package database to `~/.zoi/pkgs/db` and sets up shell completions.
+  </Step>
+
+  <Step title="Install Packages">
+    Install packages from the registry, local files, or URLs:
+
+    ```bash
+    zoi install @zillowe/hello
+    ```
+
+    Zoi resolves dependencies, downloads the package, verifies checksums and signatures, and installs it to `~/.zoi/pkgs/store`.
+  </Step>
+
+  <Step title="Use Installed Tools">
+    All installed binaries are automatically available in your PATH:
+
+    ```bash
+    hello
+    # Output: Hello from Zoi!
+    ```
+  </Step>
+</Steps>
+
+## Package Managers Supported
+
+Zoi integrates with over 40 package managers, including:
+
+| Manager   | Ecosystem / OS                  | Example                     |
+| --------- | ------------------------------- | --------------------------- |
+| `zoi`     | Zoi packages                    | `zoi:my-package`            |
+| `native`  | System's native package manager | `native:openssl`            |
+| `apt`     | Debian, Ubuntu, etc.            | `apt:libssl-dev`            |
+| `pacman`  | Arch Linux                      | `pacman:base-devel`         |
+| `brew`    | macOS (Homebrew)                | `brew:node`                 |
+| `scoop`   | Windows                         | `scoop:git`                 |
+| `cargo`   | Rust                            | `cargo:ripgrep`             |
+| `npm`     | Node.js                         | `npm:typescript`            |
+| `pip`     | Python                          | `pip:requests`              |
+| `go`      | Go                              | `go:github.com/user/tool`   |
+
+See the [Dependencies](/dependencies) page for the complete list.
+
+## Use as a Rust Library
+
+Zoi's core functionality is available as a Rust library for integration into other applications:
+
+```toml
+[dependencies]
+zoi-rs = "1.7.0"
+```
+
+See the [Library API documentation](/lib/introduction) for more details.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Install Zoi" icon="download" href="/installation">
+    Choose your preferred installation method for Linux, macOS, or Windows
+  </Card>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Get from installation to your first package install in minutes
+  </Card>
+  <Card title="Command Reference" icon="terminal" href="/commands/all-commands">
+    Explore all available CLI commands and options
+  </Card>
+  <Card title="Create Packages" icon="box" href="/guides/creating-packages">
+    Learn how to write your own `.pkg.lua` package definitions
+  </Card>
+</CardGroup>
+
+<Note>
+  Zoi is part of the **Zillowe Development Suite (ZDS)**, a collection of tools designed to streamline development workflows.
+</Note>

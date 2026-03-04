@@ -1,97 +1,303 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Zoi Documentation
+description: Universal package manager and environment setup tool for cross-platform development workflows
+mode: custom
 ---
 
-## Setting up
+<div className="relative bg-gradient-to-br from-[#222533] via-[#1a1d27] to-[#0f1117] dark:from-[#222533] dark:via-[#1a1d27] dark:to-[#0f1117] py-20">
+  <div className="max-w-7xl mx-auto px-6 lg:px-8">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+      <div className="lg:col-span-7">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          Universal Package Manager for Modern Development
+        </h1>
+        <p className="text-base sm:text-lg lg:text-xl text-gray-300 dark:text-gray-300 max-w-2xl mb-8">
+          Zoi simplifies package management across Linux, macOS, and Windows. Install tools from any source, manage project environments, and integrate with 40+ package managers—all from one CLI.
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <a
+            href="/quickstart"
+            className="inline-flex items-center px-6 py-3 bg-[#5454f4] hover:bg-[#4343e3] text-white font-semibold rounded-lg transition-colors"
+          >
+            Get Started
+          </a>
+          <a
+            href="/introduction"
+            className="inline-flex items-center px-6 py-3 border border-white/30 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-colors"
+          >
+            Learn More
+          </a>
+        </div>
+      </div>
+      <div className="lg:col-span-5 hidden lg:block">
+        <div className="bg-[#1a1d27] dark:bg-[#1a1d27] rounded-2xl border border-white/10 p-6 shadow-2xl">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+          <pre className="text-sm text-gray-300 dark:text-gray-300 overflow-x-auto">
+{`$ zoi install @zillowe/hello
+✓ Resolved dependencies
+✓ Downloaded hello@1.0.0
+✓ Installed to ~/.zoi/pkgs/store
 
-Get your documentation site up and running in minutes.
+$ hello
+Hello from Zoi!`}
+          </pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Quick Start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get Zoi up and running in three simple steps
+  </p>
 
-## Make it yours
+  <Steps>
+    <Step title="Install Zoi">
+      Choose your preferred installation method:
 
-Design a docs site that looks great and empowers your users.
+      <CodeGroup>
+      ```bash Linux / macOS
+      curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+      ```
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+      ```powershell Windows
+      powershell -c "irm zillowe.pages.dev/scripts/zoi/install.ps1|iex"
+      ```
 
-## Create beautiful pages
+      ```bash Homebrew
+      brew install Zillowe/tap/zoi
+      ```
 
-Everything you need to create world-class documentation.
+      ```bash Cargo
+      cargo install zoi-rs
+      ```
+      </CodeGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+      <Tip>
+        On Arch Linux, install from the AUR: `yay -S zoi-bin`
+      </Tip>
+    </Step>
 
-## Need inspiration?
+    <Step title="Sync Package Repositories">
+      Before installing packages, sync the official package database:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+      ```bash
+      zoi sync
+      ```
+
+      This command clones the Zoidberg package registry to your local machine and sets up shell completions.
+    </Step>
+
+    <Step title="Install Your First Package">
+      Now you're ready to install packages:
+
+      ```bash
+      zoi install @zillowe/hello
+      ```
+
+      Zoi resolves dependencies, downloads the package, verifies checksums, and installs it to your system. The `hello` command is now available in your PATH.
+
+      <Accordion title="Example output">
+        ```
+        ✓ Resolved dependencies in 234ms
+        ✓ Downloaded hello@1.0.0 (linux-amd64)
+        ✓ Verified checksum (SHA512)
+        ✓ Installed to ~/.zoi/pkgs/store/hello-1.0.0
+        ✓ Linked bin/hello → ~/.zoi/pkgs/bin/hello
+        ```
+      </Accordion>
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Explore by Topic
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Jump to the documentation that matters most to you
+  </p>
+
+  <CardGroup cols={3}>
+    <Card title="Installation" icon="download" href="/installation">
+      Install Zoi on Linux, macOS, or Windows using package managers or installer scripts
+    </Card>
+    <Card title="Command Reference" icon="terminal" href="/commands/all-commands">
+      Complete reference for all Zoi CLI commands, flags, and subcommands
+    </Card>
+    <Card title="Creating Packages" icon="box" href="/guides/creating-packages">
+      Write `.pkg.lua` files to define and build your own packages
+    </Card>
+    <Card title="Dependencies" icon="diagram-project" href="/dependencies">
+      Integrate with apt, brew, npm, cargo, pip, and 40+ other package managers
+    </Card>
+    <Card title="Project Environments" icon="folder-tree" href="/project-config">
+      Use `zoi.yaml` to manage commands, dependencies, and dev shells per project
+    </Card>
+    <Card title="Repositories" icon="git" href="/repositories">
+      Add official or custom Git-based package registries
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Key Features
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Why developers choose Zoi for package management
+  </p>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <a href="/features" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#5454f4] dark:hover:border-[#5454f4] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Cross-Platform by Design
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          One package definition works on Linux (x64/arm64), macOS (Intel/Apple Silicon), and Windows. Zoi handles platform detection automatically.
+        </p>
+        <span className="text-sm text-gray-500 dark:text-gray-500 group-hover:text-[#5454f4] dark:group-hover:text-[#5454f4] transition-colors inline-flex items-center gap-1">
+          Learn more
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </a>
+
+    <a href="/dependencies" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#5454f4] dark:hover:border-[#5454f4] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          40+ Package Manager Integrations
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Define dependencies from apt, brew, npm, cargo, pip, and more. Zoi installs them using the native manager for each ecosystem.
+        </p>
+        <span className="text-sm text-gray-500 dark:text-gray-500 group-hover:text-[#5454f4] dark:group-hover:text-[#5454f4] transition-colors inline-flex items-center gap-1">
+          See all integrations
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </a>
+
+    <a href="/commands/dev" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#5454f4] dark:hover:border-[#5454f4] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Development Shells
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Run `zoi dev` to enter a subshell with all project dependencies installed and PATH, LD_LIBRARY_PATH, and CPATH configured automatically.
+        </p>
+        <span className="text-sm text-gray-500 dark:text-gray-500 group-hover:text-[#5454f4] dark:group-hover:text-[#5454f4] transition-colors inline-flex items-center gap-1">
+          Try it now
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </a>
+
+    <a href="/lua-api" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#5454f4] dark:hover:border-[#5454f4] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Dynamic Package Definitions
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Packages are defined in Lua scripts, offering maximum flexibility. Compute URLs dynamically, handle platform-specific logic, and run custom build steps.
+        </p>
+        <span className="text-sm text-gray-500 dark:text-gray-500 group-hover:text-[#5454f4] dark:group-hover:text-[#5454f4] transition-colors inline-flex items-center gap-1">
+          View API docs
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </a>
+
+    <a href="/guides/security" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#5454f4] dark:hover:border-[#5454f4] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Secure by Default
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Verify package integrity with SHA512 checksums and authenticity with GPG signatures. Zoi ships with a built-in PGP keyring for the official registry.
+        </p>
+        <span className="text-sm text-gray-500 dark:text-gray-500 group-hover:text-[#5454f4] dark:group-hover:text-[#5454f4] transition-colors inline-flex items-center gap-1">
+          Security features
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </a>
+
+    <a href="/lib/introduction" className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#5454f4] dark:hover:border-[#5454f4] overflow-hidden no-underline transition-colors bg-white dark:bg-[#1a1d27]">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          Use as a Rust Library
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Embed Zoi's package management capabilities in your own Rust applications. Available on crates.io as `zoi-rs`.
+        </p>
+        <span className="text-sm text-gray-500 dark:text-gray-500 group-hover:text-[#5454f4] dark:group-hover:text-[#5454f4] transition-colors inline-flex items-center gap-1">
+          API reference
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </span>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-semibold text-gray-900 dark:text-white mb-3">
+    Resources & Community
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get help and connect with the Zoi community
+  </p>
+
+  <CardGroup cols={2}>
+    <Card title="GitHub Discussions" icon="github" href="https://github.com/Zillowe/Zoi/discussions">
+      Ask questions, share packages, and discuss feature requests
+    </Card>
+    <Card title="Discord Server" icon="discord" href="https://discord.gg/P4R7yaA3hf">
+      Real-time chat with maintainers and community members
+    </Card>
+    <Card title="Report a Bug" icon="bug" href="https://gitlab.com/Zillowe/Zillwen/Zusty/Zoi/-/issues/new?issuable_template=Bug%20Report">
+      Found an issue? Submit a bug report on GitLab
+    </Card>
+    <Card title="Contributing Guide" icon="code-pull-request" href="/contributing">
+      Learn how to contribute to Zoi's development
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="bg-gradient-to-br from-[#5454f4] to-[#4343e3] dark:from-[#5454f4] dark:to-[#4343e3] rounded-2xl p-8 sm:p-12">
+    <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+      Ready to streamline your workflow?
+    </h2>
+    <p className="text-base sm:text-lg text-white/90 mb-6 max-w-2xl">
+      Install Zoi in seconds and start managing packages across all your systems from one unified interface.
+    </p>
+    <a
+      href="/quickstart"
+      className="inline-flex items-center px-6 py-3 bg-white hover:bg-gray-100 text-[#5454f4] font-semibold rounded-lg transition-colors"
+    >
+      Get Started Now
+    </a>
+  </div>
+</div>

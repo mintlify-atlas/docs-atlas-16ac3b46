@@ -1,0 +1,419 @@
+---
+title: "Creating Packages"
+description: "Build custom Zoi packages with .pkg.lua files"
+---
+
+Zoi packages are defined using `.pkg.lua` files written in Lua. This format offers maximum flexibility for defining package metadata, handling platform-specific logic, and running custom build steps.
+
+## Package Structure
+
+A `.pkg.lua` file defines package metadata, dependencies, build instructions, and installation hooks. The Lua environment provides helper functions to fetch data, parse files, and interact with the filesystem.
+
+### Basic Package Template
+
+```lua example.pkg.lua
+metadata {
+  name = "example",
+  repo = "custom",
+  version = "1.0.0",
+  description = "An example package",
+  license = "MIT",
+  types = { "pre-compiled" },
+  maintainer = {
+    name = "Your Name",
+    email = "you@example.com"
+  }
+}
+
+dependencies {
+  build = {
+    "curl",
+    "tar"
+  },
+  runtime = {
+    "openssl"
+  }
+}
+
+function prepare(args)
+  -- Download and extract source
+  UTILS.FILE(
+    "https://example.com/archive.tar.gz",
+    "archive.tar.gz"
+  )
+  UTILS.EXTRACT("archive.tar.gz", "source")
+end
+
+function package(args)
+  -- Copy binaries to staging directory
+  ZCP("source/bin/*", "${usrroot}/bin/")
+  ZCP("source/lib/*", "${usrroot}/lib/")
+end
+
+function verify(args)
+  -- Verify the package contents
+  return UTILS.EXISTS("${STAGING_DIR}/data/usrroot/bin/example")
+end
+```
+
+## Metadata Block
+
+The `metadata` function defines package information:
+
+```lua
+metadata {
+  name = "package-name",           -- Required: package identifier
+  repo = "repository-name",        -- Required: source repository
+  version = "1.0.0",               -- Optional: default version
+  description = "Package purpose", -- Required: brief description
+  website = "https://example.com", -- Optional: project website
+  license = "MIT",                 -- Required: software license
+  types = { "pre-compiled", "source" }, -- Build types supported
+  maintainer = {
+    name = "Maintainer Name",
+    email = "maintainer@example.com"
+  },
+  bins = { "binary1", "binary2" }, -- Binaries provided by package
+  sub_packages = { "core", "dev" } -- Optional: sub-package names
+}
+```
+
+### Required Fields
+
+- `name`: Unique package identifier (lowercase, alphanumeric, hyphens)
+- `repo`: Repository where the package is published
+- `description`: One-line summary of the package
+- `license`: Software license (SPDX identifier recommended)
+- `types`: Build types - typically `"pre-compiled"` or `"source"`
+- `maintainer.name` and `maintainer.email`: Package maintainer contact
+
+### Optional Fields
+
+- `version`: Default version (can be overridden at build time)
+- `website`: Project homepage URL
+- `bins`: List of executable names installed by the package
+- `sub_packages`: Names of sub-packages for modular installations
+
+## Dependencies
+
+Define dependencies using the `dependencies` function:
+
+```lua
+dependencies {
+  build = {
+    "gcc",
+    "make"
+  },
+  runtime = {
+    "@zillowe/libssl",
+    "curl"
+  },
+  apt = {
+    "libncurses-dev"
+  },
+  optional = {
+    {
+      name = "graphics",
+      desc = "Graphics support",
+      all = false,
+      depends = { "@zillowe/cairo", "@zillowe/pango" }
+    }
+  }
+}
+```
+
+- `build`: Build-time dependencies (compilers, build tools)
+- `runtime`: Runtime dependencies (libraries, utilities)
+- `apt`, `brew`, `npm`, etc.: Platform-specific package manager dependencies
+- `optional`: Optional feature groups users can enable
+
+## Build Functions
+
+Zoi executes Lua functions during the package build process in this order:
+
+### prepare(args)
+
+Download sources, extract archives, and set up the build environment:
+
+```lua
+function prepare(args)
+  local version = PKG.version or "1.0.0"
+  local url = string.format(
+    "https://github.com/example/project/archive/v%s.tar.gz",
+    version
+  )
+  
+  UTILS.FILE(url, "source.tar.gz")
+  UTILS.EXTRACT("source.tar.gz", "source")
+  UTILS.CHDIR("source")
+end
+```
+
+### package(args)
+
+Copy files to the staging directory using `ZCP`:
+
+```lua
+function package(args)
+  -- Copy to standard locations
+  ZCP("build/bin/*", "${usrroot}/bin/")
+  ZCP("build/lib/*", "${usrroot}/lib/")
+  ZCP("build/share/*", "${usrroot}/share/")
+  
+  -- Package-specific installation directory
+  ZCP("config/*", "${pkgstore}/config/")
+end
+```
+
+**Installation Paths:**
+
+- `${usrroot}`: Maps to `/usr` (system) or `~/.zoi/pkgs/root` (user)
+- `${pkgstore}`: Package-specific data directory
+- `${createpkgdir}`: Created package directory
+- `${usrhome}`: User home directory
+
+### verify(args)
+
+Optional verification step - return `true` if package is valid:
+
+```lua
+function verify(args)
+  local bin_exists = UTILS.EXISTS("${STAGING_DIR}/data/usrroot/bin/myapp")
+  local lib_exists = UTILS.EXISTS("${STAGING_DIR}/data/usrroot/lib/libmyapp.so")
+  
+  if not bin_exists then
+    print("ERROR: Binary not found")
+    return false
+  end
+  
+  return true
+end
+```
+
+If verification fails, the user is prompted to confirm whether to continue.
+
+## Platform Support
+
+Handle platform-specific logic using global variables:
+
+```lua
+function prepare(args)
+  local arch_map = {
+    ["linux-amd64"] = "x86_64-linux-gnu",
+    ["linux-arm64"] = "aarch64-linux-gnu",
+    ["darwin-amd64"] = "x86_64-apple-darwin",
+    ["darwin-arm64"] = "aarch64-apple-darwin",
+    ["windows-amd64"] = "x86_64-pc-windows-msvc"
+  }
+  
+  local target = arch_map[PLATFORM]
+  local url = string.format(
+    "https://example.com/releases/%s-%s.tar.gz",
+    PKG.version, target
+  )
+  
+  UTILS.FILE(url, "binary.tar.gz")
+  UTILS.EXTRACT("binary.tar.gz", ".")
+end
+```
+
+**Available Platforms:**
+
+- `linux-amd64`, `linux-arm64`
+- `darwin-amd64`, `darwin-arm64`
+- `windows-amd64`, `windows-arm64`
+
+## Utility Functions
+
+The Lua environment provides built-in utilities:
+
+### File Operations
+
+```lua
+-- Download a file
+UTILS.FILE("https://example.com/file.tar.gz", "output.tar.gz")
+
+-- Extract archive (supports .tar.gz, .tar.xz, .zip, .7z, .tar.zst)
+UTILS.EXTRACT("archive.tar.gz", "destination/")
+
+-- Check if file/directory exists
+if UTILS.EXISTS("path/to/file") then
+  print("File exists")
+end
+
+-- Change directory
+UTILS.CHDIR("subdir")
+
+-- Copy files to staging (ZCP)
+ZCP("source/path", "${usrroot}/destination/")
+```
+
+### Parsing Data
+
+```lua
+-- Parse JSON
+local data = UTILS.PARSE.json(json_string)
+
+-- Parse YAML
+local config = UTILS.PARSE.yaml(yaml_string)
+
+-- Parse TOML
+local manifest = UTILS.PARSE.toml(toml_string)
+
+-- Extract checksum from checksum file
+local hash = UTILS.PARSE.checksumFile(content, "filename.tar.gz")
+```
+
+### Fetching Remote Data
+
+```lua
+-- Fetch URL content as string
+local content = UTILS.FETCH.url("https://api.example.com/version")
+
+-- Get latest GitHub release tag
+local version = UTILS.FETCH.GITHUB.LATEST.tag({ repo = "owner/repo" })
+
+-- Get latest GitLab release
+local version = UTILS.FETCH.GITLAB.LATEST.release({ 
+  repo = "group/project",
+  domain = "https://gitlab.com" -- optional
+})
+
+-- Get latest commit from Gitea/Forgejo
+local commit = UTILS.FETCH.GITEA.LATEST.commit({ 
+  repo = "user/repo",
+  branch = "main" -- optional
+})
+```
+
+### Cryptographic Hashing
+
+```lua
+-- Calculate SHA-256
+local sha256 = UTILS.HASH.sha256("file.tar.gz")
+
+-- Calculate SHA-512
+local sha512 = UTILS.HASH.sha512("file.tar.gz")
+
+-- Calculate MD5
+local md5 = UTILS.HASH.md5("file.tar.gz")
+```
+
+## Building Packages
+
+Use the `zoi package build` command to build packages:
+
+```bash
+# Build for current platform
+zoi package build example.pkg.lua --type pre-compiled
+
+# Build for specific platforms
+zoi package build example.pkg.lua --type pre-compiled -p linux-amd64 -p darwin-arm64
+
+# Build and sign with PGP key
+zoi package build example.pkg.lua --type pre-compiled --sign your-key-name
+
+# Run tests before building
+zoi package build example.pkg.lua --type pre-compiled --test
+
+# Specify output directory
+zoi package build example.pkg.lua --type pre-compiled -o ./dist
+```
+
+**Output files:**
+
+- `package-1.0.0-linux-amd64.pkg.tar.zst` - Compressed package archive
+- `package-1.0.0-linux-amd64.pkg.tar.zst.hash` - SHA-512 checksum
+- `package-1.0.0-linux-amd64.pkg.tar.zst.size` - Download and install sizes
+- `package-1.0.0-linux-amd64.pkg.tar.zst.files` - List of installed files
+- `package-1.0.0-linux-amd64.pkg.tar.zst.sig` - PGP signature (if signed)
+
+## Testing Packages Locally
+
+Test your package before publishing:
+
+<Steps>
+  <Step title="Build the package">
+    ```bash
+    zoi package build myapp.pkg.lua --type pre-compiled
+    ```
+  </Step>
+
+  <Step title="Install from local archive">
+    ```bash
+    zoi package install myapp-1.0.0-linux-amd64.pkg.tar.zst
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    ```bash
+    zoi show myapp
+    myapp --version
+    ```
+  </Step>
+
+  <Step title="Uninstall when done">
+    ```bash
+    zoi uninstall myapp
+    ```
+  </Step>
+</Steps>
+
+## Sub-Packages
+
+Split large packages into modular components:
+
+```lua
+metadata {
+  name = "myapp",
+  repo = "custom",
+  sub_packages = { "core", "dev", "docs" },
+  description = "My application",
+  -- ...
+}
+
+function package(args)
+  if args.sub == "core" then
+    ZCP("bin/*", "${usrroot}/bin/")
+    ZCP("lib/*.so", "${usrroot}/lib/")
+  elseif args.sub == "dev" then
+    ZCP("include/*", "${usrroot}/include/")
+    ZCP("lib/*.a", "${usrroot}/lib/")
+  elseif args.sub == "docs" then
+    ZCP("docs/*", "${usrroot}/share/doc/myapp/")
+  end
+end
+```
+
+Build sub-packages:
+
+```bash
+# Build all sub-packages
+zoi package build myapp.pkg.lua --type pre-compiled
+
+# Build specific sub-packages
+zoi package build myapp.pkg.lua --type pre-compiled --sub core --sub dev
+```
+
+Install sub-packages:
+
+```bash
+zoi package install myapp-1.0.0-linux-amd64.pkg.tar.zst --sub core
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Publishing Packages" icon="upload" href="/guides/publishing-packages">
+    Learn how to publish your packages to a Zoi repository
+  </Card>
+  <Card title="Security" icon="shield" href="/guides/security">
+    Sign packages with GPG and verify checksums
+  </Card>
+  <Card title="Lua API Reference" icon="code" href="/lua-api">
+    Complete API documentation for .pkg.lua files
+  </Card>
+  <Card title="Transaction Hooks" icon="webhook" href="/guides/transaction-hooks">
+    Add pre/post install hooks to packages
+  </Card>
+</CardGroup>

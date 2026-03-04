@@ -1,80 +1,217 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get up and running with Zoi in minutes
 ---
 
-## Get started in three steps
+Get Zoi installed and working in three simple steps. This guide will take you from installation to your first package install.
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+  <Step title="Install Zoi">
+    Choose the installation method that works best for your system:
 
-### Step 1: Set up your local environment
+    <Tabs>
+      <Tab title="Linux / macOS">
+        Use the installer script for a quick setup:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+        ```bash
+        curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+        ```
 
-### Step 2: Deploy your changes
+        <Accordion title="Alternative: Package managers">
+          **Arch Linux (AUR)**
+          ```bash
+          yay -S zoi-bin
+          ```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+          **Homebrew (macOS/Linux)**
+          ```bash
+          brew install Zillowe/tap/zoi
+          ```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+          **Cargo**
+          ```bash
+          cargo install zoi-rs
+          ```
+        </Accordion>
+      </Tab>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+      <Tab title="Windows">
+        Use the PowerShell installer:
 
-### Step 3: Go live
+        ```powershell
+        powershell -c "irm zillowe.pages.dev/scripts/zoi/install.ps1|iex"
+        ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+        <Accordion title="Alternative: Scoop">
+          ```powershell
+          scoop bucket add zillowe https://github.com/Zillowe/scoop.git
+          scoop install zoi
+          ```
+        </Accordion>
+      </Tab>
+    </Tabs>
 
-## Next steps
+    <Tip>
+      After installation, restart your terminal or run `source ~/.bashrc` (or equivalent for your shell) to update your PATH.
+    </Tip>
 
-Now that you have your docs running, explore these key features:
+    Verify the installation:
+
+    ```bash
+    zoi version
+    ```
+
+    <Accordion title="Example output">
+      ```
+      zoi 1.7.0 (Production/Release)
+      Commit: a1b2c3d
+      ```
+    </Accordion>
+  </Step>
+
+  <Step title="Sync Package Repositories">
+    Before you can install packages, sync the official package database from the Zoidberg registry:
+
+    ```bash
+    zoi sync
+    ```
+
+    This command:
+    - Clones the Zoidberg package registry to `~/.zoi/pkgs/db/`
+    - Sets up shell completions automatically
+    - Checks for available package managers on your system
+
+    <Accordion title="Example output">
+      ```
+      Syncing registries...
+      ✓ zoidberg: Cloned successfully (1.2s)
+      ✓ Detected package managers: apt, snap, cargo, npm, pip
+      ✓ Shell completions installed for bash
+      
+      Synced 1 registry with 2,847 packages
+      ```
+    </Accordion>
+
+    <Info>
+      Zoi supports multiple registries. You can add custom registries with `zoi sync add <url>`. See the [repositories guide](/repositories) for details.
+    </Info>
+  </Step>
+
+  <Step title="Install Your First Package">
+    Now you're ready to install packages. Let's install the `hello` example package:
+
+    ```bash
+    zoi install @zillowe/hello
+    ```
+
+    Zoi will:
+    1. Resolve dependencies
+    2. Download the package for your platform
+    3. Verify the checksum
+    4. Install it to the Zoi store
+    5. Create symlinks in your PATH
+
+    <Accordion title="Example output">
+      ```
+      Resolving dependencies...
+      ✓ Resolved hello@1.0.0 in 127ms
+      
+      Downloading packages...
+      ✓ hello@1.0.0 (linux-amd64) [1.2 MB] (534ms)
+      
+      Verifying packages...
+      ✓ Verified checksum (SHA512)
+      
+      Installing packages...
+      ✓ Installed hello@1.0.0 to ~/.zoi/pkgs/store/hello-1.0.0
+      ✓ Linked bin/hello → ~/.zoi/pkgs/bin/hello
+      
+      Successfully installed 1 package
+      ```
+    </Accordion>
+
+    Test the installed package:
+
+    ```bash
+    hello
+    ```
+
+    You should see:
+    ```
+    Hello from Zoi!
+    ```
+
+    <Note>
+      If the `hello` command isn't found, make sure `~/.zoi/pkgs/bin` is in your PATH. Run `zoi shell <your-shell>` to configure your shell automatically.
+    </Note>
+  </Step>
+</Steps>
+
+## Common Tasks
+
+Now that Zoi is set up, here are some common commands you'll use:
+
+### Search for Packages
+
+```bash
+zoi search editor
+```
+
+Use the interactive mode for a better experience:
+
+```bash
+zoi search editor -i
+```
+
+### List Installed Packages
+
+```bash
+zoi list
+```
+
+### Show Package Details
+
+```bash
+zoi show @zillowe/hello
+```
+
+### Update Packages
+
+Update a specific package:
+
+```bash
+zoi update @zillowe/hello
+```
+
+Update all packages:
+
+```bash
+zoi update --all
+```
+
+### Uninstall a Package
+
+```bash
+zoi uninstall @zillowe/hello
+```
+
+## Next Steps
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Explore Commands" icon="terminal" href="/commands/all-commands">
+    Learn about all available Zoi commands
+  </Card>
+  <Card title="Create Packages" icon="box" href="/guides/creating-packages">
+    Write your own `.pkg.lua` package definitions
+  </Card>
+  <Card title="Project Environments" icon="folder-tree" href="/project-config">
+    Use `zoi.yaml` to manage project-specific tools
+  </Card>
+  <Card title="Repository Guide" icon="git" href="/repositories">
+    Add custom package registries
+  </Card>
 </CardGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  **Need help?** Join the [Discord server](https://discord.gg/P4R7yaA3hf) or check out [GitHub Discussions](https://github.com/Zillowe/Zoi/discussions).
 </Note>

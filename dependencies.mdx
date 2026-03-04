@@ -1,0 +1,466 @@
+---
+title: Dependencies
+description: Complete guide to Zoi's dependency management and supported package managers.
+---
+
+Zoi integrates with over 40 system and language-specific package managers to provide comprehensive dependency management. This page covers all supported managers and how to use them.
+
+## Dependency Format
+
+Zoi dependencies use a simple string format:
+
+```
+<manager>:<package>[@version][:<description>]
+```
+
+- `<manager>`: The package manager to use (e.g., `apt`, `npm`, `cargo`)
+- `<package>`: The package name
+- `@version` or version constraint: Optional version specification
+- `:<description>`: Optional human-readable description
+
+### Examples
+
+```lua
+-- Simple dependency
+"apt:libssl-dev"
+
+-- With version constraint
+"npm:typescript@^5.0.0"
+"cargo:serde@1.0.0"
+
+-- With description
+"zoi:my-plugin:Provides extra features"
+
+-- Using native package manager
+"native:openssl"
+```
+
+## Supported Package Managers
+
+Zoi supports 40+ package managers across different ecosystems:
+
+### System Package Managers
+
+| Manager | Ecosystem / OS | Example |
+|---------|----------------|----------|
+| `native` | System's native package manager | `native:openssl` |
+| `apt` / `apt-get` | Debian, Ubuntu, etc. | `apt:libssl-dev` |
+| `pacman` | Arch Linux | `pacman:base-devel` |
+| `aur` | Arch Linux (AUR) | `aur:visual-studio-code-bin` |
+| `brew` | macOS (Homebrew) | `brew:node` |
+| `brew-cask` | macOS (Homebrew Cask) | `brew-cask:docker` |
+| `scoop` | Windows | `scoop:git` |
+| `choco` | Windows (Chocolatey) | `choco:nodejs` |
+| `winget` | Windows | `winget:Microsoft.VisualStudioCode` |
+| `dnf` | Fedora, RHEL | `dnf:gcc` |
+| `yum` | CentOS, older RHEL | `yum:make` |
+| `zypper` | openSUSE | `zypper:python3` |
+| `apk` | Alpine Linux | `apk:build-base` |
+| `snap` | Linux (Snapcraft) | `snap:node` |
+| `flatpak` | Linux (Flathub) | `flatpak:org.gimp.GIMP` |
+| `nix` | NixOS / Nix | `nix:nixpkgs.hello` |
+| `guix` | GNU Guix | `guix:hello` |
+| `portage` | Gentoo | `portage:dev-lang/python` |
+| `eopkg` | Solus | `eopkg:gcc` |
+| `pkg` | FreeBSD | `pkg:curl` |
+| `pkg_add` | OpenBSD | `pkg_add:curl` |
+| `xbps` / `xbps-install` | Void Linux | `xbps:base-devel` |
+| `macports` | macOS (MacPorts) | `macports:git` |
+| `mas` | macOS App Store | `mas:497799835` |
+
+### Language-Specific Package Managers
+
+| Manager | Ecosystem | Example |
+|---------|-----------|----------|
+| `npm` | Node.js | `npm:typescript` |
+| `bun` | Bun | `bun:elysia` |
+| `deno` | Deno | `deno:npm-chalk` or `deno:jsr-@std/bytes` |
+| `jsr` | JavaScript Registry | `jsr:@std/http` |
+| `pnpm` | Node.js (pnpm) | `pnpm:vite` |
+| `yarn` | Node.js (Yarn) | `yarn:react` |
+| `pip` | Python | `pip:requests` |
+| `pipx` | Python (isolated) | `pipx:black` |
+| `uv` | Python (uv) | `uv:ruff` |
+| `conda` | Python (Anaconda) | `conda:numpy` |
+| `cargo` | Rust | `cargo:ripgrep` |
+| `cargo-binstall` | Rust (binary install) | `cargo-binstall:cargo-watch` |
+| `go` | Go | `go:github.com/user/tool@latest` |
+| `gem` | Ruby | `gem:rails` |
+| `composer` | PHP | `composer:laravel/installer` |
+| `dotnet` | .NET | `dotnet:dotnet-ef` |
+| `dart-pub` | Dart | `dart-pub:http` |
+| `zig` | Zig | `zig:zls` |
+| `volta` | Node.js version manager | `volta:node` |
+
+### AUR Helpers
+
+| Manager | Description |
+|---------|-------------|
+| `yay` | Yet Another Yogurt (AUR helper) |
+| `paru` | Feature-packed AUR helper |
+| `pikaur` | AUR helper with minimal dependencies |
+| `trizen` | Lightweight AUR helper |
+
+<Note>
+  Some package managers are OS-specific. Zoi will only attempt to install dependencies for managers available on the current system.
+</Note>
+
+## The `native` Manager
+
+The special `native` manager resolves to your system's native package manager:
+
+- **Linux**: Detects and uses `apt`, `pacman`, `dnf`, etc.
+- **macOS**: Uses `brew`
+- **Windows**: Uses `scoop` or `choco`
+
+```lua
+dependencies({
+  runtime = {
+    required = { "native:openssl", "native:curl" }
+  }
+})
+```
+
+This makes packages more portable across different operating systems.
+
+## Dependency Structure in `.pkg.lua`
+
+Dependencies are declared in the `dependencies()` function:
+
+```lua
+dependencies({
+  -- Build-time dependencies
+  build = {
+    types = {
+      source = {
+        required = { "native:make", "native:gcc" },
+        optional = { "native:ccache:Speeds up compilation" }
+      },
+      ["pre-compiled"] = {
+        required = { "native:tar" }
+      }
+    }
+  },
+  
+  -- Runtime dependencies
+  runtime = {
+    required = { "native:openssl" },
+    optional = { "zoi:my-plugin:Provides extra features" },
+    options = {
+      {
+        name = "database",
+        desc = "Database backend",
+        all = false, -- Only one can be selected
+        depends = {
+          "apt:postgresql:PostgreSQL database",
+          "apt:mysql-server:MySQL database",
+          "apt:sqlite3:SQLite database"
+        }
+      }
+    }
+  }
+})
+```
+
+### Dependency Types
+
+#### Required Dependencies
+
+Always installed automatically:
+
+```lua
+required = { "native:openssl", "npm:typescript" }
+```
+
+#### Optional Dependencies
+
+User can choose which to install (prompted interactively):
+
+```lua
+optional = { 
+  "zoi:plugin-a:Adds feature A",
+  "zoi:plugin-b:Adds feature B"
+}
+```
+
+With `--yes` flag, all optional dependencies are installed.
+
+#### Dependency Options (Selectable)
+
+User must choose one or more from a group:
+
+```lua
+options = {
+  {
+    name = "database",
+    desc = "Database backend",
+    all = false, -- Choose only one
+    depends = {
+      "apt:postgresql:PostgreSQL",
+      "apt:mysql-server:MySQL",
+      "apt:sqlite3:SQLite"
+    }
+  },
+  {
+    name = "plugins",
+    desc = "Optional plugins",
+    all = true, -- Can choose multiple
+    depends = {
+      "zoi:plugin-a:Feature A",
+      "zoi:plugin-b:Feature B"
+    }
+  }
+}
+```
+
+- `all = false`: User selects exactly one (radio button behavior)
+- `all = true`: User can select multiple (checkbox behavior)
+
+### Build Dependencies by Type
+
+Build dependencies can vary based on the build method:
+
+```lua
+build = {
+  types = {
+    source = {
+      required = { "native:make", "native:gcc", "native:git" }
+    },
+    ["pre-compiled"] = {
+      required = { "native:tar", "native:gzip" }
+    }
+  }
+}
+```
+
+Zoi will only install the dependencies for the selected build type.
+
+### Sub-Package Dependencies
+
+Split packages can have different dependencies for each sub-package:
+
+```lua
+dependencies({
+  runtime = {
+    required = { "native:openssl" }, -- For all sub-packages
+    sub_packages = {
+      headers = {
+        required = { "native:gcc" }
+      },
+      docs = {
+        required = { "native:man-db" }
+      }
+    }
+  }
+})
+```
+
+## Version Constraints
+
+Zoi supports semantic versioning constraints:
+
+```lua
+-- Exact version
+"npm:typescript@5.3.2"
+"cargo:serde@1.0.0"
+
+-- Version ranges (semver)
+"npm:react@^18.0.0"  -- Compatible with 18.x.x
+"npm:vite@~4.5.0"    -- Compatible with 4.5.x
+"cargo:tokio@>=1.0.0" -- Greater than or equal to 1.0.0
+```
+
+<Note>
+  Version constraint syntax follows the semver specification. Not all package managers support version constraints.
+</Note>
+
+## Dependency Installation Process
+
+When Zoi installs a package:
+
+1. **Parse dependencies**: Extract manager, package name, and version
+2. **Check if installed**: Run the manager's check command (if available)
+3. **Install if needed**: Execute the manager's install command
+4. **Handle Zoi dependencies**: Recursively resolve and install Zoi packages
+5. **Track installed dependencies**: Record what was installed for cleanup
+
+### Manager Commands
+
+Each package manager has three command templates (from `src/pkg/pm/managers.json`):
+
+```json
+{
+  "npm": {
+    "is_installed": "npm list -g {package}",
+    "install": "npm install -g {package_with_version}",
+    "uninstall": "npm uninstall -g {package}"
+  }
+}
+```
+
+- `is_installed`: Check if a package is already installed (optional)
+- `install`: Install the package
+- `uninstall`: Remove the package
+
+Placeholders:
+- `{package}`: Package name
+- `{package_with_version}`: Package with version in manager-specific format
+
+## AUR Dependencies
+
+AUR (Arch User Repository) packages are handled specially:
+
+1. Clone the AUR repository: `https://aur.archlinux.org/{package}.git`
+2. Run `makepkg -si` to build and install
+3. Requires `git` and `makepkg` to be available
+
+```lua
+dependencies({
+  runtime = {
+    required = { "aur:visual-studio-code-bin" }
+  }
+})
+```
+
+See implementation in `src/pkg/dependencies.rs:250-293`.
+
+## Deno Dependencies
+
+Deno has a special syntax for different registries:
+
+```lua
+-- NPM packages via Deno
+"deno:npm-chalk"
+
+-- JSR packages via Deno
+"deno:jsr-@std/bytes"
+```
+
+Note the `-` instead of `:` for the registry separator.
+
+## Platform-Specific Dependencies
+
+Some package managers only work on specific platforms:
+
+- **Linux-only**: `apt`, `pacman`, `dnf`, `snap`, `flatpak`, etc.
+- **macOS-only**: `brew`, `mas`, `macports`
+- **Windows-only**: `scoop`, `choco`, `winget`
+
+Zoi automatically skips dependencies for unavailable package managers.
+
+## Checking Installed Dependencies
+
+Use `zoi why` to see why a package is installed:
+
+```sh
+# Show dependency chain
+zoi why package-name
+```
+
+This displays:
+- Whether the package was installed directly or as a dependency
+- Which package depends on it (if installed as a dependency)
+
+## Uninstalling Dependencies
+
+When you uninstall a package, Zoi can optionally remove dependencies that were installed with it:
+
+```sh
+# Remove package and its dependencies
+zoi uninstall package-name --remove-deps
+
+# Remove orphaned dependencies (installed as deps but no longer needed)
+zoi autoremove
+```
+
+## Example: Complete Dependency Declaration
+
+Here's a real-world example from a hypothetical package:
+
+```lua
+dependencies({
+  build = {
+    types = {
+      source = {
+        required = {
+          "native:make",
+          "native:gcc",
+          "native:git",
+          "cargo:cargo-make"
+        },
+        optional = {
+          "native:ccache:Speeds up compilation"
+        }
+      },
+      ["pre-compiled"] = {
+        required = { "native:tar", "native:gzip" }
+      }
+    }
+  },
+  
+  runtime = {
+    required = {
+      "native:openssl",
+      "native:ca-certificates",
+      "zoi:base-utils"
+    },
+    optional = {
+      "zoi:plugin-telemetry:Enable telemetry",
+      "zoi:plugin-themes:Additional themes"
+    },
+    options = {
+      {
+        name = "database",
+        desc = "Database backend (choose one)",
+        all = false,
+        depends = {
+          "apt:postgresql:PostgreSQL database",
+          "apt:mysql-server:MySQL/MariaDB database",
+          "apt:sqlite3:Lightweight SQLite"
+        }
+      },
+      {
+        name = "web-server",
+        desc = "Web server (optional)",
+        all = true,
+        depends = {
+          "apt:nginx:Nginx web server",
+          "apt:apache2:Apache web server"
+        }
+      }
+    },
+    sub_packages = {
+      dev = {
+        required = {
+          "npm:typescript",
+          "npm:eslint",
+          "cargo:rust-analyzer"
+        }
+      },
+      docs = {
+        required = { "native:man-db" }
+      }
+    }
+  }
+})
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Packages" icon="hammer" href="/docs/zds/zoi/creating-packages">
+    Learn how to create packages with dependencies
+  </Card>
+  
+  <Card title="Lua API" icon="code" href="/docs/zds/zoi/lua-api">
+    Explore the full Lua API for package scripts
+  </Card>
+  
+  <Card title="Project Config" icon="file-code" href="/docs/zds/zoi/project-config">
+    Configure project-level dependencies
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/docs/zds/zoi/config">
+    Configure Zoi's behavior
+  </Card>
+</CardGroup>

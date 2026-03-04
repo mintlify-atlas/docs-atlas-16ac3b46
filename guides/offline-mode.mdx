@@ -1,0 +1,357 @@
+---
+title: "Offline Mode"
+description: "Use Zoi without internet connectivity"
+---
+
+Zoi supports offline mode for environments with limited or no internet access, such as air-gapped systems, CI/CD runners, or development in remote locations.
+
+## How Offline Mode Works
+
+When offline mode is enabled, Zoi:
+
+- **Does not fetch** packages from remote repositories
+- **Uses only cached** packages and metadata
+- **Skips network-dependent** operations (update checks, telemetry)
+- **Installs from local** archives and cached data
+
+Offline mode is controlled by a global flag that persists across commands.
+
+## Enabling Offline Mode
+
+Set offline mode using the `--offline` flag or environment variable:
+
+### Command-Line Flag
+
+```bash
+# Enable offline mode for a single command
+zoi install @zillowe/hello --offline
+
+# Enable for any Zoi command
+zoi sync --offline
+zoi update --offline
+```
+
+### Environment Variable
+
+Set the `ZOI_OFFLINE` environment variable to enable offline mode globally:
+
+```bash
+# Linux/macOS
+export ZOI_OFFLINE=1
+zoi install package-name
+
+# Windows PowerShell
+$env:ZOI_OFFLINE=1
+zoi install package-name
+
+# Windows CMD
+set ZOI_OFFLINE=1
+zoi install package-name
+```
+
+Add to your shell profile (`.bashrc`, `.zshrc`, etc.) for persistent offline mode:
+
+```bash .bashrc
+export ZOI_OFFLINE=1
+```
+
+## Preparing for Offline Use
+
+Before working offline, pre-download packages and cache metadata.
+
+<Steps>
+  <Step title="Sync repositories while online">
+    ```bash
+    zoi sync
+    ```
+
+    This downloads repository metadata and package definitions to:
+    - `~/.zoi/repos/` (user repositories)
+    - `/etc/zoi/repos/` (system repositories, if applicable)
+  </Step>
+
+  <Step title="Pre-download packages">
+    Install packages you'll need offline:
+
+    ```bash
+    zoi install @zillowe/nodejs @zillowe/python @zillowe/git
+    ```
+
+    Downloaded packages are cached in `~/.zoi/cache/`.
+  </Step>
+
+  <Step title="Verify cached packages">
+    Check what's available in the cache:
+
+    ```bash
+    zoi cache list
+    ```
+
+    Example output:
+    ```
+    Cached packages:
+      nodejs-20.10.0-linux-amd64.pkg.tar.zst (25.3 MB)
+      python-3.11.5-linux-amd64.pkg.tar.zst (42.1 MB)
+      git-2.43.0-linux-amd64.pkg.tar.zst (15.7 MB)
+    
+    Total cache size: 83.1 MB
+    ```
+  </Step>
+
+  <Step title="Enable offline mode">
+    ```bash
+    export ZOI_OFFLINE=1
+    ```
+  </Step>
+</Steps>
+
+## Installing Packages Offline
+
+Once offline mode is enabled, install packages from the cache:
+
+```bash
+zoi install @zillowe/nodejs --offline
+```
+
+**Output:**
+
+```
+✓ Resolved dependencies (offline mode)
+✓ Using cached nodejs-20.10.0-linux-amd64.pkg.tar.zst
+✓ Verified checksum
+✓ Installed to ~/.zoi/pkgs/store/nodejs-20.10.0
+```
+
+If a package is not cached:
+
+```
+✗ Package not found in cache: python-3.12.0-linux-amd64.pkg.tar.zst
+  Offline mode is enabled. Cannot download from remote repository.
+
+Please sync while online or disable offline mode:
+  zoi sync
+  zoi install python --offline=false
+```
+
+## Using Local Package Archives
+
+Install packages directly from local `.pkg.tar.zst` files without needing a repository:
+
+```bash
+zoi package install myapp-1.0.0-linux-amd64.pkg.tar.zst
+```
+
+This works in both online and offline modes and is useful for:
+
+- Testing locally-built packages
+- Distributing packages on removable media (USB drives)
+- Installing packages in isolated environments
+
+### Transferring Packages to Air-Gapped Systems
+
+<Steps>
+  <Step title="Download packages on an online system">
+    ```bash
+    zoi install @zillowe/nodejs --download-only
+    ```
+
+    This downloads the package to the cache without installing it.
+  </Step>
+
+  <Step title="Copy cache to removable media">
+    ```bash
+    cp ~/.zoi/cache/*.pkg.tar.zst /mnt/usb/
+    ```
+  </Step>
+
+  <Step title="Transfer to offline system">
+    Move the USB drive to the offline system.
+  </Step>
+
+  <Step title="Install from local archives">
+    ```bash
+    zoi package install /mnt/usb/nodejs-20.10.0-linux-amd64.pkg.tar.zst
+    ```
+  </Step>
+</Steps>
+
+## Managing the Cache
+
+### View Cache Contents
+
+```bash
+zoi cache list
+```
+
+### Clear the Cache
+
+```bash
+# Remove all cached packages
+zoi cache clean
+
+# Remove specific package from cache
+zoi cache clean nodejs
+```
+
+<Warning>
+  Be careful when cleaning the cache in offline environments. You won't be able to re-download packages without internet access.
+</Warning>
+
+### Cache Location
+
+Cached packages are stored in:
+
+- **Linux/macOS:** `~/.zoi/cache/`
+- **Windows:** `C:\Users\<username>\.zoi\cache\`
+
+You can manually copy package archives to this directory for offline use.
+
+## Offline Project Environments
+
+Use `zoi.yaml` to define project dependencies and work offline:
+
+```yaml zoi.yaml
+name: my-project
+dependencies:
+  - nodejs
+  - python
+  - gcc
+
+commands:
+  dev:
+    run: npm run dev
+    scope: project
+```
+
+With offline mode enabled:
+
+```bash
+# Sync dependencies while online
+zoi sync
+zoi install --project
+
+# Enable offline mode
+export ZOI_OFFLINE=1
+
+# Enter dev environment (uses cached packages)
+zoi dev
+```
+
+See the [Project Configuration](/project-config) guide for more on `zoi.yaml`.
+
+## CI/CD in Offline Mode
+
+Run CI/CD pipelines offline by caching packages in the build environment.
+
+### GitHub Actions
+
+```yaml .github/workflows/build.yml
+name: Build (Offline)
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Cache Zoi packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.zoi/cache
+          key: zoi-cache-${{ hashFiles('zoi.yaml') }}
+      
+      - name: Install Zoi
+        run: curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+      
+      - name: Sync packages (online)
+        run: |
+          export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+          zoi sync
+          zoi install --project
+      
+      - name: Build (offline)
+        run: |
+          export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+          export ZOI_OFFLINE=1
+          zoi dev -- npm run build
+```
+
+### GitLab CI
+
+```yaml .gitlab-ci.yml
+variables:
+  ZOI_OFFLINE: "1"
+
+cache:
+  paths:
+    - .zoi/cache/
+
+build:
+  stage: build
+  script:
+    - curl -fsSL https://zillowe.pages.dev/scripts/zoi/install.sh | bash
+    - export PATH="$HOME/.zoi/pkgs/bin:$PATH"
+    - zoi sync
+    - zoi install --project
+    - zoi dev -- make build
+```
+
+See the [CI/CD guide](/guides/cicd) for more examples.
+
+## Limitations in Offline Mode
+
+Some operations require internet connectivity and will fail or behave differently in offline mode:
+
+- **Repository sync** (`zoi sync`) - Cannot fetch updates from remote repositories
+- **Package search** (`zoi search`) - Searches only cached metadata
+- **Version checks** - Cannot check for newer package versions
+- **Telemetry** - Analytics are disabled (see [Telemetry](/telemetry))
+- **Dynamic package definitions** - `.pkg.lua` files that fetch data from APIs may fail
+
+## Troubleshooting
+
+### "Package not found in cache"
+
+**Problem:** Trying to install a package that hasn't been downloaded.
+
+**Solution:**
+
+1. Disable offline mode temporarily: `zoi install package --offline=false`
+2. Or download the package while online and copy to cache
+
+### "Repository metadata out of date"
+
+**Problem:** Repository was synced a long time ago and packages may be outdated.
+
+**Solution:**
+
+1. Sync repositories while online: `zoi sync`
+2. Or accept that offline packages may not be the latest versions
+
+### "Cannot resolve dependencies"
+
+**Problem:** A package depends on other packages not in the cache.
+
+**Solution:**
+
+1. While online, install the package and all its dependencies: `zoi install package`
+2. This downloads the full dependency tree to the cache
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Project Configuration" icon="folder-tree" href="/project-config">
+    Define project dependencies with zoi.yaml
+  </Card>
+  <Card title="Backup & Restore" icon="floppy-disk" href="/guides/backup-restore">
+    Back up your Zoi installation and packages
+  </Card>
+  <Card title="CI/CD Integration" icon="gears" href="/guides/cicd">
+    Use Zoi in CI/CD pipelines
+  </Card>
+  <Card title="Cache Command" icon="database" href="/commands/all-commands#cache">
+    Manage the package cache
+  </Card>
+</CardGroup>

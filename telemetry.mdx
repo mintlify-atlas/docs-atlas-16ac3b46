@@ -1,0 +1,293 @@
+---
+title: Telemetry
+description: Understanding Zoi's opt-in anonymous telemetry and privacy controls
+---
+
+Zoi includes optional, anonymous telemetry to help developers understand how the package manager is used and improve the user experience. Telemetry is **disabled by default** and requires explicit opt-in.
+
+## Telemetry Status
+
+**Default:** Disabled (opt-in required)
+
+Telemetry respects user privacy:
+- **No personal information** is collected
+- **No package names or versions** are sent (only anonymized hashes)
+- **No file paths or system details** beyond OS/architecture
+- **Anonymous client ID** is generated locally
+- **Open source**: Review the code in `src/pkg/telemetry.rs`
+
+## What Data is Collected?
+
+When telemetry is enabled, Zoi sends minimal, anonymous event data:
+
+### Event Types
+
+- `package_install` - A package was installed
+- `package_uninstall` - A package was removed
+- `package_upgrade` - A package was upgraded
+
+### Data Fields
+
+| Field | Description | Example |
+|-------|-------------|----------|
+| `client_id` | Anonymous UUID (generated locally) | `550e8400-e29b-41d4-a716-446655440000` |
+| `event` | Event type | `package_install` |
+| `ts` | Timestamp (RFC3339) | `2024-03-04T10:30:00Z` |
+| `app_version` | Zoi version | `1.5.0` |
+| `os` | Operating system | `linux`, `darwin`, `windows` |
+| `arch` | CPU architecture | `amd64`, `arm64` |
+| `package_type` | Package type | `package`, `app`, `collection` |
+| `package.name` | Package name | `git` |
+| `package.repo` | Repository tier | `core`, `main` |
+| `package.version` | Package version | `2.43.0` |
+| `package.description` | Package description | `Fast version control system` |
+| `package.maintainer` | Maintainer info | `{name, email}` |
+| `package.registry` | Registry handle | `zoidberg` |
+| `package.registry_url` | Registry URL | `https://github.com/...` |
+
+### Example Telemetry Event
+
+```json
+{
+  "client_id": "550e8400-e29b-41d4-a716-446655440000",
+  "event": "package_install",
+  "ts": "2024-03-04T10:30:00Z",
+  "app_version": "1.5.0",
+  "os": "linux",
+  "arch": "amd64",
+  "package_type": "package",
+  "package": {
+    "name": "nginx",
+    "repo": "main",
+    "version": "1.25.3",
+    "description": "High performance web server",
+    "maintainer": {
+      "name": "Jane Doe",
+      "email": "jane@example.com"
+    },
+    "registry": "zoidberg",
+    "registry_url": "https://github.com/Zillowe/Zoidberg.git"
+  }
+}
+```
+
+## Privacy Controls
+
+### Client ID
+
+A unique anonymous identifier is generated on first use and stored in:
+
+**Path:** `~/.zoi/telemetry/client_id`
+
+This UUID is used to track unique users without identifying them. It is:
+- Generated locally using UUIDv7
+- Never linked to personal information
+- Stored only on your machine
+- Can be deleted to reset tracking
+
+### Data Retention
+
+Telemetry data is sent to PostHog (analytics platform) and is subject to their retention policies. Zoi maintainers can access:
+
+- Aggregate statistics (e.g., "1000 installs of nginx this week")
+- Platform distributions (e.g., "60% Linux, 30% macOS, 10% Windows")
+- Popular packages
+- Version adoption rates
+
+Zoi maintainers **cannot** access:
+- Your identity
+- Your IP address (anonymized by PostHog)
+- Individual user activities
+- File paths or system configurations
+
+## Enabling Telemetry
+
+### Option 1: Configuration File
+
+Edit your user configuration:
+
+**~/.zoi/pkgs/config.yaml:**
+```yaml
+telemetry_enabled: true
+```
+
+### Option 2: Command Line
+
+```bash
+zoi config set telemetry_enabled true
+```
+
+### Option 3: Extension
+
+Create an extension that enables telemetry:
+
+```lua
+metadata {
+  name = "enable-telemetry",
+  type = "extension",
+  -- ...
+}
+
+metadata {
+  extension = {
+    type = "zoi",
+    changes = {
+      {
+        type = "config",
+        set = { telemetry_enabled = true }
+      }
+    }
+  }
+}
+```
+
+## Disabling Telemetry
+
+### Option 1: Configuration File
+
+**~/.zoi/pkgs/config.yaml:**
+```yaml
+telemetry_enabled: false
+```
+
+### Option 2: Command Line
+
+```bash
+zoi config set telemetry_enabled false
+```
+
+### Option 3: Delete Client ID
+
+Remove the client ID to stop all telemetry:
+
+```bash
+rm ~/.zoi/telemetry/client_id
+```
+
+## System Administrator Control
+
+Administrators can enforce telemetry settings via system policy:
+
+**/etc/zoi/config.yaml:**
+```yaml
+telemetry_enabled: false  # Disable for all users
+
+policy:
+  telemetry_enabled_unoverridable: true  # Prevent users from enabling
+```
+
+Or require telemetry:
+
+```yaml
+telemetry_enabled: true  # Enable for all users
+
+policy:
+  telemetry_enabled_unoverridable: true  # Prevent users from disabling
+```
+
+## How Telemetry Works
+
+### Architecture
+
+1. **Event Trigger**: User installs a package
+2. **Check Setting**: Zoi checks `telemetry_enabled` in config
+3. **If Disabled**: Event is not sent (function returns immediately)
+4. **If Enabled**: Event is constructed with package metadata
+5. **Send to PostHog**: HTTP POST to PostHog API endpoint
+6. **Non-Blocking**: Telemetry runs asynchronously (doesn't slow down operations)
+7. **Error Handling**: Network failures are silently ignored
+
+### Implementation
+
+See source code: `src/pkg/telemetry.rs`
+
+```rust
+pub fn posthog_capture_event(
+    event_name: &str,
+    pkg: &Package,
+    app_version: &str,
+    registry_handle: &str,
+) -> Result<bool, Box<dyn Error>> {
+    let config = read_config()?;
+    if !config.telemetry_enabled {
+        return Ok(false);  // Telemetry disabled
+    }
+    
+    // Collect minimal event data
+    // Send to PostHog
+    // Return success/failure
+}
+```
+
+### PostHog Configuration
+
+Telemetry endpoints are configured at build time:
+
+**Environment Variables:**
+- `POSTHOG_API_KEY` - PostHog project key
+- `POSTHOG_API_HOST` - PostHog server URL (default: `https://eu.i.posthog.com`)
+
+These are typically set in CI/CD or via `.env` file during builds.
+
+## Use Cases for Telemetry
+
+Aggregated telemetry data helps Zoi developers:
+
+1. **Prioritize features**: Focus on platforms/architectures that users actually use
+2. **Identify popular packages**: Understand which packages need the most attention
+3. **Track adoption**: See how quickly users upgrade to new Zoi versions
+4. **Detect issues**: Notice sudden drops in install success rates
+5. **Improve documentation**: Focus docs on commonly used packages
+
+## Transparency
+
+Zoi's telemetry implementation is fully open source. You can review:
+
+- **Source code**: `src/pkg/telemetry.rs`
+- **Data structures**: `PackageEvent`, `MinimalPackage` in telemetry.rs
+- **PostHog docs**: https://posthog.com/docs/privacy
+
+## Frequently Asked Questions
+
+### Is telemetry required?
+
+No. Telemetry is opt-in and disabled by default.
+
+### Can I see what data is sent?
+
+Yes. Review `src/pkg/telemetry.rs` to see exactly what fields are included in events.
+
+### Can telemetry identify me?
+
+No. The client ID is a random UUID with no personal information. IP addresses are anonymized by PostHog.
+
+### Does telemetry slow down operations?
+
+No. Telemetry runs asynchronously with a 4-second timeout. Failed requests don't block package operations.
+
+### Can I opt out after opting in?
+
+Yes. Set `telemetry_enabled: false` in your config at any time.
+
+### What if PostHog is unreachable?
+
+Telemetry failures are silently ignored. Zoi continues to function normally.
+
+### Can I use my own telemetry backend?
+
+Yes, but requires rebuilding Zoi with different `POSTHOG_API_KEY` and `POSTHOG_API_HOST` values.
+
+## Alternative Privacy-Friendly Options
+
+If you want to support Zoi development without telemetry:
+
+- **Report bugs**: File issues on GitHub/GitLab
+- **Contribute packages**: Add packages to registries
+- **Write documentation**: Improve guides and tutorials
+- **Spread the word**: Share Zoi with others
+
+## See Also
+
+- [Configuration Guide](/docs/zds/zoi/config) - Managing telemetry settings
+- [PostHog Privacy](https://posthog.com/docs/privacy) - PostHog's privacy policy
+- [Audit Logging](/docs/zds/zoi/config#audit_log_enabled) - Local logging alternative

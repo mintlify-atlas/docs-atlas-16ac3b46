@@ -1,0 +1,317 @@
+---
+title: Repositories
+description: Understanding Zoi's repository system, tiers, and registry management.
+---
+
+Zoi uses a repository-based system for package distribution. This page explains how repositories work, how they're organized by tiers, and how to manage them.
+
+## Repository Tiers
+
+Zoi organizes packages into tiers to indicate their stability, maintenance status, and purpose. The official [Zoidberg](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg) repository uses the following tier structure:
+
+| Repository | Purpose |
+|------------|--------|
+| **core** | Essential packages, libraries and very common/maintained packages |
+| **main** | Packages that don't fit in Core but are essential for most people |
+| **extra** | Packages that are new, not very common or maintained, not preferable |
+| **community** | User submitted packages that are new, can be upgraded to a higher repo |
+| **test** | Testing repo for new Zoi features and for new packages before release |
+| **archive** | Archived packages that are no longer maintained |
+| **zillowe** | Zillowe's own official packages |
+
+<Callout type="warning">
+  Packages from `community`, `test`, and `archive` may carry higher risk. Zoi prints warnings where appropriate.
+</Callout>
+
+## Official Package Database
+
+Zoi's official package database is called **Zoidberg**. It's hosted on multiple forges for redundancy:
+
+- **Primary**: [GitLab](https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg.git)
+- **Mirrors**: [GitHub](https://github.com/Zillowe/Zoidberg.git), [Codeberg](https://codeberg.org/Zillowe/Zoidberg.git)
+
+The package database is cloned to `~/.zoi/pkgs/db` when you run `zoi sync`.
+
+## Managing Registries
+
+The package database registry is the core git repository that contains all package definitions. You can change which registry Zoi uses:
+
+| Command | Description |
+|---------|-------------|
+| `zoi sync set <url-or-keyword>` | Sets the package database registry URL. Keywords: `default`, `gitlab`, `github`, `codeberg` |
+| `zoi sync list` | Displays the current configured registries |
+| `zoi sync add <url>` | Adds a new registry to be synced |
+| `zoi sync remove <handle>` | Removes a configured registry by its handle |
+
+### Examples
+
+```sh
+# Show the current configured registries
+zoi sync list
+
+# Set the registry to the official GitHub mirror
+zoi sync set github
+
+# Set the registry to a custom URL
+zoi sync set https://my-custom-registry.com/Zoidberg.git
+
+# Add an additional registry
+zoi sync add https://git.company.com/team/packages.git
+```
+
+## Managing Active Repositories
+
+The `zoi repo` command manages which repositories from the package database are active. Active repositories are searched during package operations.
+
+<Note>
+  The distinction between **registries** (via `zoi sync`) and **repositories** (via `zoi repo`) is important:
+  - **Registries** are the git sources that contain package definitions
+  - **Repositories** are the tiers/categories within those registries (core, main, extra, etc.)
+</Note>
+
+### Repository Commands
+
+| Command | Description |
+|---------|-------------|
+| `zoi repo add` | Add an official repo by name or a git repo by URL (interactive if no args) |
+| `zoi repo rm <name>` | Remove a repository from the active list |
+| `zoi repo list` (alias: `ls`) | Show active repositories from config |
+| `zoi repo list all` | Show all available repositories |
+| `zoi repo git ls` | List cloned git repositories under `~/.zoi/pkgs/git` |
+| `zoi repo git rm <repo>` | Remove a cloned git repository directory |
+
+### Examples
+
+```sh
+# Add a repository interactively
+zoi repo add
+
+# Add official repositories by name
+zoi repo add core
+zoi repo add main
+zoi repo add community
+
+# Add by git URL (cloned under ~/.zoi/pkgs/git/)
+zoi repo add https://github.com/YourOrg/my-zoi-repo.git
+
+# Remove and list
+zoi repo rm community
+zoi repo list
+zoi repo list all
+zoi repo git ls
+zoi repo git rm my-zoi-repo
+```
+
+## Installing from Specific Repositories
+
+You can specify which repository to install a package from using special prefixes:
+
+### From a Top-Level Repository
+
+Install `htop` from the `community` repository:
+
+```sh
+zoi install @community/htop
+```
+
+### From a Sub-Package
+
+Install the `headers` sub-package from the `linux` package in the `core` repository:
+
+```sh
+zoi install @core/linux:headers
+```
+
+### From a Nested Repository Path
+
+Useful for platform-specific packages:
+
+```sh
+zoi install @core/linux/amd64/nvidia-driver
+```
+
+### From a Specific Registry
+
+If you have multiple registries configured (see `zoi sync list`):
+
+```sh
+zoi install '#my-registry@my-repo/my-package'
+```
+
+### From a Custom Git Repository
+
+Use the `@git/` prefix with the repository name:
+
+```sh
+zoi install @git/my-zoi-repo/path/to/package
+```
+
+## Direct Git Repository Installation
+
+You can install packages directly from remote git repositories without adding them to your configuration:
+
+```sh
+# Install from a GitHub repository
+zoi install --repo Zillowe/Hello
+
+# Install from a GitLab repository
+zoi install --repo gl:Zillowe/Hello
+
+# Install from a Codeberg repository
+zoi install --repo cb:Zillowe/Hello
+```
+
+This works if the target repository has a `zoi.yaml` file in its root. The `package` field in this file can specify a package name, a path to a `.pkg.lua` file, or a URL.
+
+### Provider Prefixes
+
+- `gh:` or `github:` for GitHub (default if no prefix)
+- `gl:` or `gitlab:` for GitLab
+- `cb:` or `codeberg:` for Codeberg
+
+### Remote Git Registry Syntax
+
+Install from a remote git repository that acts as a Zoi registry:
+
+```sh
+# Install 'my-package' from the 'community' repo inside a registry hosted on GitHub
+zoi install '#git:github.com/some-user/my-zoi-registry@community/my-package'
+```
+
+Supported hosts: `github.com`, `gitlab.com`, `codeberg.org`
+
+## The `repo.yaml` File
+
+A Zoi package registry is defined by a `repo.yaml` file at its root. This file contains metadata about the repository.
+
+### Structure
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | The name of the repository (used as the handle) |
+| `description` | `string` | A short description of the repository |
+| `authorities` | `list` of `string` | (Optional) PGP fingerprints trusted to sign the registry's Git commits |
+| `git` | `list` of `GitLink` | Git repository URLs (`type` can be `main` or `mirror`) |
+| `pkg` | `list` of `PkgLink` | (Optional) URLs for pre-built package registries |
+| `pgp` | `list` of `PgpKey` | (Optional) PGP keys to import for package signature verification |
+| `repos` | `list` of `Repo` | Sub-repositories (tiers) within the registry |
+
+### Example `repo.yaml`
+
+```yaml
+name: Zoidberg
+description: Official Zoi packages repository
+git:
+  - type: main
+    url: https://gitlab.com/Zillowe/Zillwen/Zusty/Zoidberg.git
+  - type: mirror
+    url: https://github.com/Zillowe/Zoidberg.git
+  - type: mirror
+    url: https://codeberg.org/Zillowe/Zoidberg.git
+pkg:
+  # Standard directory-based structure (Zoi appends filename)
+  - type: main
+    url: https://zillowe.pages.dev/pkgs/{repo}/{os}/{arch}/{version}
+    pgp: https://zillowe.pages.dev/pkgs/{repo}/{os}/{arch}/{version}/{name}-{version}-{platform}.pkg.tar.zst.sig
+    hash: https://zillowe.pages.dev/pkgs/{repo}/{os}/{arch}/{version}/{name}-{version}-{platform}.pkg.tar.zst.hash
+    size: https://zillowe.pages.dev/pkgs/{repo}/{os}/{arch}/{version}/{name}-{version}-{platform}.pkg.tar.zst.size
+    files: https://zillowe.pages.dev/pkgs/{repo}/{os}/{arch}/{version}/{name}-{version}-{platform}.pkg.tar.zst.files
+repos:
+  - name: core
+    type: official
+    active: true
+  - name: main
+    type: official
+    active: true
+  - name: community
+    type: community
+    active: false
+```
+
+### PkgLink Placeholders
+
+The following placeholders are available in `PkgLink` URLs:
+
+- `{name}`: Package name
+- `{version}`: Package version
+- `{os}`: Operating system (e.g. `linux`, `macos`, `windows`)
+- `{arch}`: CPU architecture (e.g. `amd64`, `arm64`)
+- `{platform}`: Full platform string (e.g. `linux-amd64`)
+- `{repo}`: Repository name (e.g. `core`, `main`)
+
+## Registry Verification (Chain of Trust)
+
+For security-conscious environments, Zoi supports verifying entire registries via Git commit signatures.
+
+### Configuring Authorities
+
+Add authorities to your `config.yaml`:
+
+```yaml
+added_registries:
+  - handle: my-team
+    url: https://git.company.com/team/zoidberg.git
+    authorities:
+      - "842293159C4B03357C8328D3A75793A3E674252E"
+```
+
+When authorities are configured, `zoi sync` will:
+
+1. Fetch the latest commit from the Git remote
+2. Check for a PGP signature on that commit
+3. Verify the signature was made by a listed authority
+4. Abort the sync if verification fails
+
+This establishes a "Chain of Trust" where the registry maintainer signs the entire repository state.
+
+## Registry Metadata Files
+
+When Zoi downloads pre-built packages, it can use accompanying metadata files:
+
+### The `.hash` File
+
+Contains the cryptographic hash of the `.pkg.tar.zst` archive.
+
+- **Supported algorithms**: SHA-512 (recommended), SHA-256, MD5
+- **Format**: Standard hash file format (like `sha512sum` output)
+
+### The `.size` File
+
+Provides download and installation sizes before downloading.
+
+**Format**:
+```text
+down: 11214
+install: 124114
+```
+
+- `down`: Size of the compressed archive (bytes)
+- `install`: Total size after extraction (bytes)
+
+### The `.files` File
+
+Contains a plain-text list of all files in the package.
+
+- **Purpose**: Enables conflict detection before downloading
+- **Format**: One file path per line
+- **Example**: `data/usrroot/usr/bin/hello`
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Creating Packages" icon="hammer" href="/docs/zds/zoi/creating-packages">
+    Learn how to create your own Zoi packages
+  </Card>
+  
+  <Card title="Publishing Packages" icon="upload" href="/docs/zds/zoi/publishing-packages">
+    Publish packages to registries
+  </Card>
+  
+  <Card title="Dependencies" icon="sitemap" href="/docs/zds/zoi/dependencies">
+    Understand dependency management
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/docs/zds/zoi/config">
+    Configure Zoi for your environment
+  </Card>
+</CardGroup>
